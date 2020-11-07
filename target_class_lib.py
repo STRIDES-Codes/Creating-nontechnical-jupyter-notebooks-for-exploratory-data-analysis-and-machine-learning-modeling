@@ -1259,23 +1259,23 @@ def plot_unsupervised_analysis(results, y, figsize=(12,7.5), alpha=1, gray_index
     with plt_ctx:
         if ax is None:
             fig, ax = plt.subplots(figsize=figsize, facecolor='w')
-            plt.show(fig)
-    #ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend="full", alpha=alpha, markers=marker_list, edgecolor='k')
-    #ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend=legend, alpha=(0.2 if gray_indexes is not None else alpha), markers=marker_list, edgecolor='k', ax=ax)
+        #ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend="full", alpha=alpha, markers=marker_list, edgecolor='k')
+        #ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend=legend, alpha=(0.2 if gray_indexes is not None else alpha), markers=marker_list, edgecolor='k', ax=ax)
 
-    ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend=legend, alpha=(0.2 if gray_indexes is not None else alpha), edgecolor='k', ax=ax)
+        ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend=legend, alpha=(0.2 if gray_indexes is not None else alpha), edgecolor='k', ax=ax)
 
-    if gray_indexes is not None:
-        import collections
-        gray_indexes=list(collections.OrderedDict.fromkeys(gray_indexes.to_list()))
-        #ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], hue='gray', style=y.iloc[gray_indexes], palette=color_palette, markers=marker_list, edgecolor='k', ax=ax)
-       # ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], color='gray', style=y.iloc[gray_indexes], palette=color_palette, markers=marker_list, edgecolor='k', ax=ax, alpha=1, legend=legend)
-        ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], color='gray', style=y.iloc[gray_indexes], palette=color_palette, edgecolor='k', ax=ax, alpha=1, legend=legend)
-    if legend is not False:
-        ax.legend(bbox_to_anchor=(1,1))
+        if gray_indexes is not None:
+            import collections
+            gray_indexes=list(collections.OrderedDict.fromkeys(gray_indexes.to_list()))
+            #ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], hue='gray', style=y.iloc[gray_indexes], palette=color_palette, markers=marker_list, edgecolor='k', ax=ax)
+        # ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], color='gray', style=y.iloc[gray_indexes], palette=color_palette, markers=marker_list, edgecolor='k', ax=ax, alpha=1, legend=legend)
+            ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], color='gray', style=y.iloc[gray_indexes], palette=color_palette, edgecolor='k', ax=ax, alpha=1, legend=legend)
+        if legend is not False:
+            ax.legend(bbox_to_anchor=(1,1))
 
-    # if save_figure:
-    #     fig.savefig(os.path.join(data_dir, 'pca_or_tsne_' + transformation_name_filename + '_transformation' + fn_addendum + '.png'), dpi=300, bbox_inches='tight')
+        # if save_figure:
+        #     fig.savefig(os.path.join(data_dir, 'pca_or_tsne_' + transformation_name_filename + '_transformation' + fn_addendum + '.png'), dpi=300, bbox_inches='tight')
+        plt.show(fig)
 
     return(ax)
 
