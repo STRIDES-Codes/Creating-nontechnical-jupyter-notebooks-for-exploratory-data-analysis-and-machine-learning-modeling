@@ -1,11 +1,12 @@
 # Prepare the annotation dataframe df_gencode_genes, particularly calculating the exon length of each gene (corresponding to its non-overlapping exons) and adding this as a column to the df_gencode_genes dataframe
 # This takes about 10 minutes if the pickle file doesn't already exist
-def calculate_exon_lengths(gencode_gtf_file):
+def calculate_exon_lengths(gencode_gtf_file, log_fcn=print):
 
     # Import relevant libraries
-    import pandas as pd
-    import numpy as np
     import os
+
+    import numpy as np
+    import pandas as pd
     tci = get_tci_library()
 
     # Set the number of steps to output so we can evaluate progress
@@ -56,7 +57,7 @@ def calculate_exon_lengths(gencode_gtf_file):
             
             # Output progress if the time is right
             if (iidx%unit_len) == 0:
-                print('{}/{} complete...'.format(istep,nsteps))
+                log_fcn('{}/{} complete...'.format(istep,nsteps))
                 istep = istep + 1
 
             # If the current index is not equal to the previous index...
@@ -85,7 +86,7 @@ def calculate_exon_lengths(gencode_gtf_file):
 
     # Otherwise, read it in
     else:
-        df_gencode_genes = tci.load_pickle(data_dir, 'annotation_dataframe.pkl')
+        df_gencode_genes = tci.load_pickle(data_dir, 'annotation_dataframe.pkl', log_fcn=log_fcn)
 
     # Return the main reference dataframe
     return(df_gencode_genes)
@@ -97,7 +98,7 @@ def get_tci_library():
     gmb_dir = '/data/BIDS-HPC/private/projects/gmb/checkout'
     if gmb_dir not in sys.path:
         sys.path.append(gmb_dir)
-    import time_cell_interaction_lib as tci # we need this to get the pickle functions e.g.
+    import time_cell_interaction_lib as tci  # we need this to get the pickle functions e.g.
     return(tci)
 
 
@@ -106,8 +107,9 @@ def get_counts_old(links_dir):
     # Sample call: srs_counts = tc.get_counts('/data/BIDS-HPC/private/projects/dmi2/data/all_gene_expression_files_in_target/links')
 
     # Import relevant libraries
-    import pandas as pd
     import os
+
+    import pandas as pd
 
     # Define the sample HT-Seq datafiles
     file_counts = 'fffee315-9aa3-44d2-8c89-78a2c1d107e7.htseq_counts.txt'
@@ -152,13 +154,14 @@ def calculate_fpkm(df_gencode_genes, sr_counts):
 
 
 # Run a few checks on some known data
-def run_checks(df_gencode_genes, calculated_counts, fpkm, fpkm_uq):
+def run_checks(df_gencode_genes, calculated_counts, fpkm, fpkm_uq, log_fcn=print):
 
     # Sample call: tc.run_checks(df_gencode_genes, srs_counts[0], fpkm, fpkm_uq)
 
     # Import relevant libraries
-    import pandas as pd
     import os
+
+    import pandas as pd
 
     # Calculate the constants
     gdc_tsv_file = '/data/BIDS-HPC/private/projects/dmi2/data/gencode.gene.info.v22.tsv'
@@ -182,7 +185,7 @@ def run_checks(df_gencode_genes, calculated_counts, fpkm, fpkm_uq):
 
     # Check for column equality between the two reference datafiles
     for colname in ['name', 'seqname', 'start', 'end', 'strand', 'type']:
-        print('Columns equal between the 2 reference files?', df_gdc[colname].equals(df_gencode_genes[colname]))
+        log_fcn('Columns equal between the 2 reference files?', df_gdc[colname].equals(df_gencode_genes[colname]))
 
     # Check that the ID columns of all five dataframes are exactly the same
     df_samples = [calculated_counts] + srs_known
@@ -193,19 +196,19 @@ def run_checks(df_gencode_genes, calculated_counts, fpkm, fpkm_uq):
         for idf2 in np.array(range(ndfs-1-idf1)) + idf1+1:
             df1 = dfs[idf1]
             df2 = dfs[idf2]
-            print('ID columns the same in all 5 dataframes?', idf1, idf2, df1.index.equals(df2.index))
+            log_fcn('ID columns the same in all 5 dataframes?', idf1, idf2, df1.index.equals(df2.index))
 
     # Show that we've reproduced what GDC calls the "exon_length" and what I'm assuming is probably the "aggregate_length" as well
-    print('Correct calculation of exon_/aggregate_length?', df_gencode_genes['exon_length'].equals(df_gdc['exon_length']))
+    log_fcn('Correct calculation of exon_/aggregate_length?', df_gencode_genes['exon_length'].equals(df_gdc['exon_length']))
 
     # Show that using these exon lengths we have achieved adjusted counts that are proportional to the FPKM values
     tmp = df_samples[0] / df_gencode_genes['exon_length'] / df_samples[1]
     tmp = tmp[tmp.notnull()]
-    print('Adjusted counts using the calculated exon lengths proportional to the FPKM values?', tmp.std()/tmp.mean()*100, (tmp-tmp.mean()).abs().max()/tmp.mean()*100)
+    log_fcn('Adjusted counts using the calculated exon lengths proportional to the FPKM values?', tmp.std()/tmp.mean()*100, (tmp-tmp.mean()).abs().max()/tmp.mean()*100)
 
-    # Print how well I reproduced the normalized values that I downloaded from the GDC data portal
-    print('Maximum percent error in FPKM: {}'.format((fpkm-df_samples[1]).abs().max() / df_samples[1].mean() * 100))
-    print('Maximum percent error in FPKM-UQ: {}'.format((fpkm_uq-df_samples[2]).abs().max() / df_samples[2].mean() * 100))
+    # log_fcn how well I reproduced the normalized values that I downloaded from the GDC data portal
+    log_fcn('Maximum percent error in FPKM: {}'.format((fpkm-df_samples[1]).abs().max() / df_samples[1].mean() * 100))
+    log_fcn('Maximum percent error in FPKM-UQ: {}'.format((fpkm_uq-df_samples[2]).abs().max() / df_samples[2].mean() * 100))
 
 
 # Get a list of text files available for each sample in the links_dir
@@ -214,7 +217,8 @@ def get_files_per_sample(links_dir):
     # Sample call: files_per_sample = tc.get_files_per_sample('/data/BIDS-HPC/private/projects/dmi2/data/all_gene_expression_files_in_target/links')
 
     # Import relevant libraries
-    import glob, os
+    import glob
+    import os
 
     # Get a list of all files (with pathnames removed) in links_dir, except for the manifest file
     txt_files = set([ x.split('/')[-1] for x in glob.glob(os.path.join(links_dir,'*')) ]) - {'MANIFEST.txt'}
@@ -232,11 +236,12 @@ def get_files_per_sample(links_dir):
 
 
 # Read in all the counts files and calculate the FPKM and FPKM-UQ values from them, checking the FPKM/FPKM-UQ values with known quantities if they're available
-def get_intensities_old(files_per_sample, links_dir, df_gencode_genes, data_dir, nsamples=-1):
+def get_intensities_old(files_per_sample, links_dir, df_gencode_genes, data_dir, nsamples=-1, log_fcn=print):
 
     # Import relevant libraries
-    import pandas as pd
     import os
+
+    import pandas as pd
     tci = get_tci_library()
 
     # Constants (suffixes of the different file types in the links directory)
@@ -281,10 +286,10 @@ def get_intensities_old(files_per_sample, links_dir, df_gencode_genes, data_dir,
                     counts_file = files[ifile]
 
             # Print the determined filenames and count filetype for the current sample
-            # print('----')
-            # print('Counts file ({}): {}'.format(counts_type, counts_file))
-            # print('FPKM file: {}'.format(fpkm_file))
-            # print('FPKM-UQ file: {}'.format(fpkm_uq_file))
+            # log_fcn('----')
+            # log_fcn('Counts file ({}): {}'.format(counts_type, counts_file))
+            # log_fcn('FPKM file: {}'.format(fpkm_file))
+            # log_fcn('FPKM-UQ file: {}'.format(fpkm_uq_file))
 
             # Get counts dataframe for the current sample
             if counts_type == 'HTSeq':
@@ -301,19 +306,19 @@ def get_intensities_old(files_per_sample, links_dir, df_gencode_genes, data_dir,
                 df_fpkm = pd.read_csv(os.path.join(links_dir, fpkm_file), sep='\t', names=['id','intensity'])
                 sr_fpkm_known = df_fpkm.set_index('id').sort_index().iloc[:,0]
                 perc_err = (sr_fpkm-sr_fpkm_known).abs().max() / sr_fpkm_known.mean() * 100
-                #print('Maximum percent error in FPKM: {}'.format(perc_err))
+                #log_fcn('Maximum percent error in FPKM: {}'.format(perc_err))
                 if perc_err > 1e-2:
-                    print('ERROR: Maximum percent error ({}) in FPKM is too high!'.format(perc_err))
+                    log_fcn('ERROR: Maximum percent error ({}) in FPKM is too high!'.format(perc_err))
                     exit()
 
-            # Print how well I reproduced the FPKM-UQ values that I downloaded from the GDC data portal, if present
+            # log_fcn how well I reproduced the FPKM-UQ values that I downloaded from the GDC data portal, if present
             if fpkm_uq_file is not None:
                 df_fpkm_uq = pd.read_csv(os.path.join(links_dir, fpkm_uq_file), sep='\t', names=['id','intensity'])
                 sr_fpkm_uq_known = df_fpkm_uq.set_index('id').sort_index().iloc[:,0]
                 perc_err = (sr_fpkm_uq-sr_fpkm_uq_known).abs().max() / sr_fpkm_uq_known.mean() * 100
-                #print('Maximum percent error in FPKM-UQ: {}'.format(perc_err))
+                #log_fcn('Maximum percent error in FPKM-UQ: {}'.format(perc_err))
                 if perc_err > 1e-5:
-                    print('ERROR: Maximum percent error ({}) in FPKM-UQ is too high!'.format(perc_err))
+                    log_fcn('ERROR: Maximum percent error ({}) in FPKM-UQ is too high!'.format(perc_err))
                     exit()
 
             # Append the current calculated series to the lists of series
@@ -321,7 +326,7 @@ def get_intensities_old(files_per_sample, links_dir, df_gencode_genes, data_dir,
             srs_fpkm.append(sr_fpkm)
             srs_fpkm_uq.append(sr_fpkm_uq)
 
-            print('\r', '{:3.1f}% complete...'.format((isample+1)/nsamples*100), end='')
+            log_fcn('\r', '{:3.1f}% complete...'.format((isample+1)/nsamples*100), end='')
 
         # Write a pickle file containing the data that take a while to calculate
         tci.make_pickle([srs_counts, srs_fpkm, srs_fpkm_uq], data_dir, 'series_lists.pkl')
@@ -335,7 +340,7 @@ def get_intensities_old(files_per_sample, links_dir, df_gencode_genes, data_dir,
 
 
 # Obtain a Pandas dataframe from the fields of interest for all samples, essentially containing everything we'll ever need to know about the samples, including the labels themselves
-def get_labels_dataframe(sample_sheet_file, metadata_file):
+def get_labels_dataframe(sample_sheet_file, metadata_file, log_fcn=print):
 
     # Sample call:
     #   sample_sheet_file = '/data/BIDS-HPC/private/projects/dmi2/data/gdc_sample_sheet.2020-07-02.tsv'
@@ -343,8 +348,10 @@ def get_labels_dataframe(sample_sheet_file, metadata_file):
     #   df_samples = tc.get_labels_dataframe(sample_sheet_file, metadata_file)
 
     # Import relevant libraries
+    import json
+    import os
+
     import pandas as pd
-    import json, os
 
     # Constants
     htseq_suffixes = ['htseq.counts', 'htseq_counts.txt']
@@ -375,7 +382,7 @@ def get_labels_dataframe(sample_sheet_file, metadata_file):
         # Check that all relevant columns of the current sample are equal, as they should be since they all correspond to the same sample even though the rows correspond to different datafiles
         non_unique_values = (len(df_sample['Data Category'].unique())!=1) or (len(df_sample['Data Type'].unique())!=1) or (len(df_sample['Project ID'].unique())!=1) or (len(df_sample['Case ID'].unique())!=1) or (len(df_sample['Sample ID'].unique())!=1) or (len(df_sample['Sample Type'].unique())!=1)
         if non_unique_values:
-            print('ERROR: All fields for the current sample are not equal over the files')
+            log_fcn('ERROR: All fields for the current sample are not equal over the files')
             exit()
 
         # Obtain the HTSeq counts files for the current sample (note: sometimes there are 2 instead of 1)
@@ -412,7 +419,7 @@ def get_labels_dataframe(sample_sheet_file, metadata_file):
         samples_index = filename_mapping_samples[filename_mapping_samples==counts_file].index[0]
         metadata_index = filename_mapping_metadata.index(counts_file)
         if samples_index != metadata_index:
-            print('ERROR: The File indexes for the sample sheet and the metadata file are different')
+            log_fcn('ERROR: The File indexes for the sample sheet and the metadata file are different')
             exit()
 
         # Get shortcut variables for the sections of the sample sheet and the metadata that have some values that we want to add to our labels dataframe
@@ -436,12 +443,12 @@ def get_labels_dataframe(sample_sheet_file, metadata_file):
     return(df)
 
 
-# Plot histograms of the numerical columns of the samples/labels before and after cutoffs could theoretically be applied, and print out a summary of what we should probably do
-def remove_bad_samples(df_samples, nstd=2):
+# Plot histograms of the numerical columns of the samples/labels before and after cutoffs could theoretically be applied, and log_fcn out a summary of what we should probably do
+def remove_bad_samples(df_samples, nstd=2, log_fcn=print):
 
     # Import relevant library
-    import numpy as np
     import matplotlib.pyplot as plt
+    import numpy as np
 
     # Generate the initial set of histograms on the numerical data in the samples dataframe
     _, ax = plt.subplots(figsize=(12,8), facecolor='w')
@@ -480,9 +487,9 @@ def remove_bad_samples(df_samples, nstd=2):
         # Plot the calculated cutoff as a vertical red line
         ax.plot([cutoff,cutoff], ylim, 'r')
 
-        # Determine a boolean array of where the values fall outside the cutoffs and print how many such bad values there are
+        # Determine a boolean array of where the values fall outside the cutoffs and log_fcn how many such bad values there are
         bad_vals = (sign*vals) > (sign*cutoff)
-        print('There are {} bad values in the "{}" plot'.format(sum(bad_vals), col))
+        log_fcn('There are {} bad values in the "{}" plot'.format(sum(bad_vals), col))
 
         # Update the boolean filtering array using the current set of bad values
         valid_ind[bad_vals]=False
@@ -492,10 +499,10 @@ def remove_bad_samples(df_samples, nstd=2):
     nbad_tot = ntot - sum(valid_ind)
 
     # Print some output of the analysis and what we'd recommend we do in the future
-    print('Most bad values are overlapping; taken together, there are {} bad values'.format(nbad_tot))
-    print('We should likely use these cutoffs to remove the bad samples; this will only remove {:3.1f}% of the data, leaving {} good samples'.format(nbad_tot/ntot*100, ntot-nbad_tot))
-    print('See for example the two generated images: the first is the original data with the cutoffs plotted in red, and the second is the filtered data with the cutoffs applied')
-    # print('For the time being though, we are leaving the data untouched!')
+    log_fcn('Most bad values are overlapping; taken together, there are {} bad values'.format(nbad_tot))
+    log_fcn('We should likely use these cutoffs to remove the bad samples; this will only remove {:3.1f}% of the data, leaving {} good samples'.format(nbad_tot/ntot*100, ntot-nbad_tot))
+    log_fcn('See for example the two generated images: the first is the original data with the cutoffs plotted in red, and the second is the filtered data with the cutoffs applied')
+    # log_fcn('For the time being though, we are leaving the data untouched!')
 
     # Plot the same histograms using the filtered samples to show what would happen if we applied the calculated cutoffs
     _, ax = plt.subplots(figsize=(12,8), facecolor='w')
@@ -505,11 +512,11 @@ def remove_bad_samples(df_samples, nstd=2):
 
 
 # Return the samples dataframe with the samples removed that correspond to multiple cases (i.e., people)
-def drop_multiperson_samples(df_samples):
+def drop_multiperson_samples(df_samples, log_fcn=print):
 
     # Import relevant libraries
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
     # Initialize the arrays of interest
     indexes_to_drop = [] # to store indexes of samples to drop
@@ -529,19 +536,20 @@ def drop_multiperson_samples(df_samples):
             indexes_to_keep[isample] = False
 
     # Create and print a Pandas dataframe of the samples to drop in order to visualize it nicely
-    print('Dropping the following samples from the samples table:')
+    log_fcn('Dropping the following samples from the samples table:')
     df_samples_to_drop = pd.DataFrame(data=samples_to_drop).rename_axis(index='sample id')
-    print(df_samples_to_drop)
+    log_fcn(df_samples_to_drop)
 
     # Return the modified samples dataframe
     return(df_samples.drop(index=indexes_to_drop), indexes_to_keep, df_samples_to_drop)
 
 
 # Perform exploratory data analysis on the sample labels
-def eda_labels(df_samples):
+def eda_labels(df_samples, log_fcn=print):
 
     # Import relevant library
     import random
+
     import matplotlib.pyplot as plt
 
     # Add the index "column" as an actual column to the dataframe so we can analyze the index column in the same manner as the other columns
@@ -594,34 +602,35 @@ def eda_labels(df_samples):
     output_col_str = ' . {:' + str(max_col_len+5) + '}{}'
 
     # Print the columns in which every row is unique
-    print('Non-numeric columns with all unique values ({} of them), with sample values:\n'.format(nsamples))
+    log_fcn('Non-numeric columns with all unique values ({} of them), with sample values:\n'.format(nsamples))
     for col_data in cols_unique:
-        print(output_col_str.format(col_data[0], col_data[1]))
+        log_fcn(output_col_str.format(col_data[0], col_data[1]))
 
     # Print the columns that are completely uniform
-    print('\nNon-numeric columns with uniform values:\n')
+    log_fcn('\nNon-numeric columns with uniform values:\n')
     for col_data in cols_uniform:
-        print(output_col_str.format(col_data[0], col_data[1]))
+        log_fcn(output_col_str.format(col_data[0], col_data[1]))
 
     # Print the columns (and supporting information) that are neither unique nor uniform
-    print('\nNon-numeric columns with non-unique and non-uniform values:\n')
+    log_fcn('\nNon-numeric columns with non-unique and non-uniform values:\n')
     for col_data in cols_other:
-        print(output_col_str.format(col_data[0], col_data[1]), '\n')
-        print(df_samples[col_data[0]].value_counts(), '\n')
+        log_fcn(output_col_str.format(col_data[0], col_data[1]), '\n')
+        log_fcn(df_samples[col_data[0]].value_counts(), '\n')
 
 
 # Read in the counts for all the samples in the samples dataframe df_samples
 # the counts dataframe will be in the same order as df_samples
-def get_counts(df_samples, links_dir):
+def get_counts(df_samples, links_dir, log_fcn=print):
 
     # Import relevant libraries
     import os
+
     import pandas as pd
 
     # Ensure that all values in the "counts file name" column of df_samples are unique as expected
     nsamples = len(df_samples)
     if not len(df_samples['counts file name'].unique()) == nsamples:
-        print('ERROR: "counts file name" column of the samples dataframe does not contain all unique values')
+        log_fcn('ERROR: "counts file name" column of the samples dataframe does not contain all unique values')
         exit()
 
     # Strip the ".gz" off of the filenames in the "counts file name" column of the samples dataframe
@@ -637,7 +646,7 @@ def get_counts(df_samples, links_dir):
         # Append the read-in and calculated values to running lists
         srs_counts.append(sr_counts)
 
-        print('\r', '{:3.1f}% complete...'.format((isample+1)/nsamples*100), end='')
+        log_fcn('\r', '{:3.1f}% complete...'.format((isample+1)/nsamples*100), end='')
     
     # Put the list of series into a Pandas dataframe
     df_counts = pd.DataFrame(srs_counts, index=df_samples.index)
@@ -656,7 +665,7 @@ def make_intensities_dataframes(srs_list, index):
 
 
 # Print some random data for us to spot-check in the files themselves to manually ensure we have a handle on the data arrays
-def spot_check_data(df_samples, df_counts, df_fpkm, df_fpkm_uq, nsamples=4):
+def spot_check_data(df_samples, df_counts, df_fpkm, df_fpkm_uq, nsamples=4, log_fcn=print):
 
     # Import relevant library
     import random
@@ -694,11 +703,11 @@ def spot_check_data(df_samples, df_counts, df_fpkm, df_fpkm_uq, nsamples=4):
             sample_type = df_samples.iloc[sample_index, 6]
 
             # Print what we should see in the files
-            print('Sample {} ({}, {}) should have a {} value of {} for gene {}'.format(sample_name, project_id, sample_type, intensity_type, intensity, gene))
+            log_fcn('Sample {} ({}, {}) should have a {} value of {} for gene {}'.format(sample_name, project_id, sample_type, intensity_type, intensity, gene))
 
 
 # Load the data downloaded from the GDC Data Portal
-def load_gdc_data(sample_sheet_file, metadata_file, links_dir):
+def load_gdc_data(sample_sheet_file, metadata_file, links_dir, log_fcn=print):
 
     # Import the relevant libraries
     import os
@@ -722,7 +731,7 @@ def load_gdc_data(sample_sheet_file, metadata_file, links_dir):
 
     # Otherwise, read it in
     else:
-        [df_samples, df_counts] = tci.load_pickle(data_dir, 'gdc_data.pkl')
+        [df_samples, df_counts] = tci.load_pickle(data_dir, 'gdc_data.pkl', log_fcn=log_fcn)
 
     return(df_samples, df_counts)
 
@@ -732,10 +741,11 @@ def load_gdc_data(sample_sheet_file, metadata_file, links_dir):
 # since df_counts is in the same order as df_samples, then the counts and FPKM/FPKM-UQ dataframes will also be aligned
 # regardless, this shouldn't be a problem moving forward, since df_samples will always be in lexical order of the sample IDs!
 # not to mention, whenever we're unsure, we should run the spot-checks!
-def get_fpkm(df_counts, annotation_file, df_samples, links_dir):
+def get_fpkm(df_counts, annotation_file, df_samples, links_dir, log_fcn=print):
 
     # Import relevant libraries
     import os
+
     import pandas as pd
     tci = get_tci_library()
 
@@ -788,7 +798,7 @@ def get_fpkm(df_counts, annotation_file, df_samples, links_dir):
 
             # Ensure there aren't more than 1 match for either FPKM or FPKM-UQ for the current basename
             if sum(fpkm_matches)>1 or sum(fpkm_uq_matches)>1:
-                print('ERROR: More than 1 FPKM or FPKM-UQ file matches the basename {}'.format(bn))
+                log_fcn('ERROR: More than 1 FPKM or FPKM-UQ file matches the basename {}'.format(bn))
                 exit()
 
             # If an FPKM file corresponding to the current basename is found...
@@ -803,7 +813,7 @@ def get_fpkm(df_counts, annotation_file, df_samples, links_dir):
                 # Determine how well our calculated values in sr_fpkm match those read in to sr_fpkm_known
                 perc_err = (sr_fpkm-sr_fpkm_known).abs().max() / sr_fpkm_known.mean() * 100
                 if perc_err > 1e-2:
-                    print('ERROR: Maximum percent error ({}) in FPKM is too high!'.format(perc_err))
+                    log_fcn('ERROR: Maximum percent error ({}) in FPKM is too high!'.format(perc_err))
                     exit()
 
             # If an FPKM-UQ file corresponding to the current basename is found...
@@ -818,14 +828,14 @@ def get_fpkm(df_counts, annotation_file, df_samples, links_dir):
                 # Determine how well our calculated values in sr_fpkm_uq match those read in to sr_fpkm_uq_known
                 perc_err = (sr_fpkm_uq-sr_fpkm_uq_known).abs().max() / sr_fpkm_uq_known.mean() * 100
                 if perc_err > 1e-5:
-                    print('ERROR: Maximum percent error ({}) in FPKM-UQ is too high!'.format(perc_err))
+                    log_fcn('ERROR: Maximum percent error ({}) in FPKM-UQ is too high!'.format(perc_err))
                     exit()
 
             # Append the read-in and calculated values to running lists
             srs_fpkm.append(sr_fpkm)
             srs_fpkm_uq.append(sr_fpkm_uq)
 
-            print('\r', '{:3.1f}% complete...'.format((isample+1)/nsamples*100), end='')
+            log_fcn('\r', '{:3.1f}% complete...'.format((isample+1)/nsamples*100), end='')
 
         # Put the lists of series into dataframes
         df_fpkm = pd.DataFrame(srs_fpkm, index=df_samples.index)
@@ -836,36 +846,36 @@ def get_fpkm(df_counts, annotation_file, df_samples, links_dir):
 
     # Otherwise, read it in
     else:
-        [df_fpkm, df_fpkm_uq] = tci.load_pickle(data_dir, 'fpkm_data.pkl')
+        [df_fpkm, df_fpkm_uq] = tci.load_pickle(data_dir, 'fpkm_data.pkl', log_fcn=log_fcn)
 
     return(df_fpkm, df_fpkm_uq)
 
 
 # Calculate the TPM using the counts and gene lengths
-def get_tpm(C_df, annotation_file):
+def get_tpm(C_df, annotation_file, log_fcn=print):
 
     # Note: I've confirmed TPM calculation with get_tpm_from_fpkm() function below using both FPKM and FPKM-UQ via:
     # df_tpm = tc.get_tpm(df_counts, annotation_file)
     # df_tpm1 = tc.get_tpm_from_fpkm(df_fpkm)
     # df_tpm2 = tc.get_tpm_from_fpkm(df_fpkm_uq)
     # import numpy as np
-    # print(np.amax(np.abs(df_tpm1-df_tpm).to_numpy(), axis=(0,1)))
-    # print(np.amax(np.abs(df_tpm2-df_tpm).to_numpy(), axis=(0,1)))
-    # print(np.amax(np.abs(df_tpm2-df_tpm1).to_numpy(), axis=(0,1)))
-    # print(np.sqrt(np.mean(((df_tpm1-df_tpm)**2).to_numpy(), axis=(0,1))))
-    # print(np.sqrt(np.mean(((df_tpm2-df_tpm)**2).to_numpy(), axis=(0,1))))
-    # print(np.sqrt(np.mean(((df_tpm2-df_tpm1)**2).to_numpy(), axis=(0,1))))
+    # log_fcn(np.amax(np.abs(df_tpm1-df_tpm).to_numpy(), axis=(0,1)))
+    # log_fcn(np.amax(np.abs(df_tpm2-df_tpm).to_numpy(), axis=(0,1)))
+    # log_fcn(np.amax(np.abs(df_tpm2-df_tpm1).to_numpy(), axis=(0,1)))
+    # log_fcn(np.sqrt(np.mean(((df_tpm1-df_tpm)**2).to_numpy(), axis=(0,1))))
+    # log_fcn(np.sqrt(np.mean(((df_tpm2-df_tpm)**2).to_numpy(), axis=(0,1))))
+    # log_fcn(np.sqrt(np.mean(((df_tpm2-df_tpm1)**2).to_numpy(), axis=(0,1))))
 
     # Import relevant library
     import numpy as np
 
     # Calculate the aggregate exon lengths the way GDC does it
     # series of length ngenes
-    L_srs = calculate_exon_lengths(annotation_file)['exon_length']
+    L_srs = calculate_exon_lengths(annotation_file, log_fcn=log_fcn)['exon_length']
 
     # Ensure the gene order in the counts and lengths is consistent so that we can perform joint operations on them
     if not C_df.columns.equals(L_srs.index):
-        print('ERROR: Order of genes in the counts dataframe is not the same as that in the lengths series')
+        log_fcn('ERROR: Order of genes in the counts dataframe is not the same as that in the lengths series')
         exit()
 
     # Extract the numbers of samples and genes; it seems like this may be unnecessary as seen in the comment after counts_norm, but doing things explicitly like this is significantly faster
@@ -917,20 +927,22 @@ def get_tpm_from_fpkm(F_df):
 
 # Write annotation and gene counts files (two files total) that are in the same format as the pasilla example so that we can follow the steps outlined at
 # http://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#count-matrix-input
-def write_sample_for_deseq2_input(srs_labels, df_counts, data_directory, dataset_name, reqd_string_in_label='primary tumor', nsamples_per_condition=[5,3,9]):
+def write_sample_for_deseq2_input(srs_labels, df_counts, data_directory, dataset_name, reqd_string_in_label='primary tumor', nsamples_per_condition=[5,3,9], log_fcn=print):
 
     # Sample call: write_sample_for_deseq2_input(df_samples['label 1'], df_counts, data_directory)
 
     # Import relevant libraries
+    import os
+    import random
+
     import numpy as np
-    import os, random
     tci = get_tci_library()
 
     # Get a subset (using both a string in the condition names and a particular number of conditions) of the series of the value counts of the label of interest
     label_value_counts = srs_labels.value_counts()
     srs_subset = label_value_counts[[ reqd_string_in_label in x.lower() for x in label_value_counts.index ]][:len(nsamples_per_condition)]
-    print('Using the following conditions (though not all of the samples for each label):')
-    print(srs_subset)
+    log_fcn('Using the following conditions (though not all of the samples for each label):')
+    log_fcn(srs_subset)
 
     # Construct a list of indexes (actual numbers) to use as a sample of all our data
     all_indexes_to_use = []
@@ -938,14 +950,14 @@ def write_sample_for_deseq2_input(srs_labels, df_counts, data_directory, dataset
         indexes = np.argwhere((srs_labels==label).to_numpy()).flatten() # get the numerical indexes of the current label
         #indexes_to_use = list(indexes[:nsamples]) # get just the number of numerical indexes that we want for the current condition - first nsamples of the list
         indexes_to_use = random.sample(list(indexes), nsamples) # get just the number of numerical indexes that we want for the current condition - random nsamples of the list
-        print('\nHere are the {} indexes out of {} that correspond to the condition {}:'.format(len(indexes), len(srs_labels), label))
-        print(indexes)
-        #print('However, we\'re only using the first {}:'.format(nsamples))
-        print('However, we\'re using just a random sample of {} items:'.format(nsamples))
-        print(indexes_to_use)
+        log_fcn('\nHere are the {} indexes out of {} that correspond to the condition {}:'.format(len(indexes), len(srs_labels), label))
+        log_fcn(indexes)
+        #log_fcn('However, we\'re only using the first {}:'.format(nsamples))
+        log_fcn('However, we\'re using just a random sample of {} items:'.format(nsamples))
+        log_fcn(indexes_to_use)
         all_indexes_to_use = all_indexes_to_use + indexes_to_use
-    print('\nHere is the final set of numerical indexes that we\'re using ({}={} of them):'.format(sum(nsamples_per_condition), len(all_indexes_to_use)))
-    print(all_indexes_to_use)
+    log_fcn('\nHere is the final set of numerical indexes that we\'re using ({}={} of them):'.format(sum(nsamples_per_condition), len(all_indexes_to_use)))
+    log_fcn(all_indexes_to_use)
 
     # Get just a sample of the labels/conditions and counts
     all_samples_to_use = srs_labels.index[all_indexes_to_use] # get the actual descriptive indexes from the numerical indexes
@@ -960,12 +972,12 @@ def write_sample_for_deseq2_input(srs_labels, df_counts, data_directory, dataset
     for nsamples, label in zip(nsamples_per_condition, labels_to_use[np.cumsum(nsamples_per_condition)-1]):
         conditions_list = conditions_list + [label]*nsamples
     if conditions_list != labels_to_use.to_list():
-        print('ERROR: The actual list of labels/conditions is not what\'s expected')
+        log_fcn('ERROR: The actual list of labels/conditions is not what\'s expected')
         exit()
 
     # Check that the indexes of the counts and labels that we're going to write out are the same    
     if not counts_to_use.columns.equals(labels_to_use.index):
-        print('ERROR: Indexes/columns of the labels/counts are inconsistent')
+        log_fcn('ERROR: Indexes/columns of the labels/counts are inconsistent')
         exit()
 
     # Create the dataset directory if it doesn't already exist
@@ -974,9 +986,9 @@ def write_sample_for_deseq2_input(srs_labels, df_counts, data_directory, dataset
 
     # Write the annotation file in the same format as the pasilla example
     with open(file=os.path.join(data_directory, 'datasets', dataset_name, 'annotation.csv'), mode='w') as f:
-        print('"file","condition"', file=f)
+        log_fcn('"file","condition"', file=f)
         for curr_file, condition in zip(labels_to_use.index, labels_to_use):
-            print('"{}","{}"'.format(curr_file, condition), file=f)
+            log_fcn('"{}","{}"'.format(curr_file, condition), file=f)
 
     # Write the gene counts in the same format as the pasilla example
     with open(file=os.path.join(data_directory, 'datasets', dataset_name, 'gene_counts.tsv'), mode='w') as f:
@@ -987,19 +999,20 @@ def write_sample_for_deseq2_input(srs_labels, df_counts, data_directory, dataset
 
 
 # Write all the data for input into DESeq2, instead of just a sample
-def write_all_data_for_deseq2_input(srs_labels, df_counts, data_directory, dataset_name, drop_zero_genes=False):
+def write_all_data_for_deseq2_input(srs_labels, df_counts, data_directory, dataset_name, drop_zero_genes=False, log_fcn=print):
 
     # Sample call: write_all_data_for_deseq2_input(df_samples['label 1'], df_counts, data_directory, 'all_data')
 
     # Import relevant libraries
-    import numpy as np
     import os
+
+    import numpy as np
     tci = get_tci_library()
 
     # Construct a list of indexes (actual numbers) to use as a sample of all our data (this time we're using them all)
     all_indexes_to_use = [ x for x in range(len(srs_labels)) ]
-    print('\nHere is the final set of numerical indexes that we\'re using ({} of them):'.format(len(all_indexes_to_use)))
-    print(all_indexes_to_use)
+    log_fcn('\nHere is the final set of numerical indexes that we\'re using ({} of them):'.format(len(all_indexes_to_use)))
+    log_fcn(all_indexes_to_use)
 
     # Get just a sample of the labels/conditions and counts
     all_samples_to_use = srs_labels.index[all_indexes_to_use] # get the actual descriptive indexes from the numerical indexes
@@ -1012,7 +1025,7 @@ def write_all_data_for_deseq2_input(srs_labels, df_counts, data_directory, datas
 
     # Check that the indexes of the counts and labels that we're going to write out are the same    
     if not counts_to_use.columns.equals(labels_to_use.index):
-        print('ERROR: Indexes/columns of the labels/counts are inconsistent')
+        log_fcn('ERROR: Indexes/columns of the labels/counts are inconsistent')
         exit()
 
     # Create the dataset directory if it doesn't already exist
@@ -1021,9 +1034,9 @@ def write_all_data_for_deseq2_input(srs_labels, df_counts, data_directory, datas
 
     # Write the annotation file in the same format as the pasilla example
     with open(file=os.path.join(data_directory, 'datasets', dataset_name, 'annotation.csv'), mode='w') as f:
-        print('"file","condition"', file=f)
+        log_fcn('"file","condition"', file=f)
         for curr_file, condition in zip(labels_to_use.index, labels_to_use):
-            print('"{}","{}"'.format(curr_file, condition), file=f)
+            log_fcn('"{}","{}"'.format(curr_file, condition), file=f)
 
     # Write the gene counts in the same format as the pasilla example
     with open(file=os.path.join(data_directory, 'datasets', dataset_name, 'gene_counts.tsv'), mode='w') as f:
@@ -1034,18 +1047,19 @@ def write_all_data_for_deseq2_input(srs_labels, df_counts, data_directory, datas
 
 
 # Create and plot PCA and tSNE analyses
-def plot_pca_and_tsne(data_directory, dataset_name, transformation_name='variance-stabilizing', ntop=500, n_components_pca=10, alpha=1, dpi=300, y=None, save_figure=False):
+def plot_pca_and_tsne(data_directory, dataset_name, transformation_name='variance-stabilizing', ntop=500, n_components_pca=10, alpha=1, dpi=300, y=None, save_figure=False, log_fcn=print):
 
     # Sample call: plot_pca_and_tsne('/data/BIDS-HPC/private/projects/dmi2/data/datasets/all_data/assay_normal_transformation.csv', '/data/BIDS-HPC/private/projects/dmi2/data/datasets/all_data/coldata_normal_transformation.csv', 'normal', '/data/BIDS-HPC/private/projects/dmi2/data/datasets/all_data')
     
     # Import relevant libraries
+    import os
+
+    import matplotlib.lines as mpl_lines
+    import matplotlib.pyplot as plt
     import pandas as pd
+    import seaborn as sns
     import sklearn.decomposition as sk_decomp
     import sklearn.manifold as sk_manif
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-    import matplotlib.lines as mpl_lines
-    import os
 
     # Process the arguments
     transformation_name_filename = transformation_name.lower().replace(' ','_').replace('-','_') # get a version of the transformation_name suitable for filenames
@@ -1072,13 +1086,13 @@ def plot_pca_and_tsne(data_directory, dataset_name, transformation_name='varianc
     y = y.loc[sample_order]
     X = X.loc[sample_order,:]
     if not y.index.equals(X.index):
-        print('ERROR: Weirdly inconsistent ordering')
+        log_fcn('ERROR: Weirdly inconsistent ordering')
         exit()
 
     # Perform PCA
     pca = sk_decomp.PCA(n_components=n_components_pca)
     pca_res = pca.fit_transform(X)
-    print('Top {} PCA explained variance ratios: {}'.format(n_components_pca, pca.explained_variance_ratio_))
+    log_fcn('Top {} PCA explained variance ratios: {}'.format(n_components_pca, pca.explained_variance_ratio_))
 
     # Get a reasonable set of markers and color palette
     markers = mpl_lines.Line2D.filled_markers
@@ -1110,21 +1124,23 @@ def plot_pca_and_tsne(data_directory, dataset_name, transformation_name='varianc
 # Run VST using DESeq2 on data exported from Python
 def run_deseq2(dataset_name, project_directory):
     # run_deseq2('all_data_label_2', project_directory)
-    import subprocess, os
+    import os
+    import subprocess
 #    cmd_list = ['Rscript', '--vanilla', os.path.join(project_directory, 'checkout', 'run_vst.R'), dataset_name, project_directory]
-#    print('Now running command: ' + ' '.join(cmd_list))
+#    log_fcn('Now running command: ' + ' '.join(cmd_list))
 #    list_files = subprocess.run(cmd_list)
-#    print('The Rscript exit code was {}'.format(list_files.returncode))
+#    log_fcn('The Rscript exit code was {}'.format(list_files.returncode))
 
 
 # This function will take the raw counts and their labels and return the data matrix X (dataframe) and labels vector y (series) with the samples in label order and the genes in top-variance order by running the VST using DESeq2, saving all intermediate files
-def run_vst(counts_dataframe, labels_series, project_directory):
+def run_vst(counts_dataframe, labels_series, project_directory, log_fcn=print):
 
     # Sample call: X, y = run_vst(df_counts, df_samples['label 1'], project_directory)
 
     # Import relevant libraries
-    import pandas as pd
     import os
+
+    import pandas as pd
     tci = get_tci_library()
 
     # Constant (basically)
@@ -1164,7 +1180,7 @@ def run_vst(counts_dataframe, labels_series, project_directory):
 
         # This should be a trivial check
         if not y.index.equals(X.index):
-            print('ERROR: Weirdly inconsistent ordering')
+            log_fcn('ERROR: Weirdly inconsistent ordering')
             exit()
 
         # Save the data to disk
@@ -1187,7 +1203,7 @@ def plot_unsupervised_analysis(results, y, figsize=(12,7.5), alpha=1, gray_index
     #   import sklearn.decomposition as sk_decomp
     #   pca = sk_decomp.PCA(n_components=10)
     #   pca_res = pca.fit_transform(X.iloc[:,:500])
-    #   print('Top {} PCA explained variance ratios: {}'.format(10, pca.explained_variance_ratio_))
+    #   log_fcn('Top {} PCA explained variance ratios: {}'.format(10, pca.explained_variance_ratio_))
     #   ax = tc.plot_unsupervised_analysis(pca_res, y)
     #   ax.set_title('PCA - variance-stabilizing transformation')
     #
@@ -1200,9 +1216,9 @@ def plot_unsupervised_analysis(results, y, figsize=(12,7.5), alpha=1, gray_index
     #
 
     # Import relevant libraries
-    import seaborn as sns
-    import matplotlib.pyplot as plt
     import matplotlib.lines as mpl_lines
+    import matplotlib.pyplot as plt
+    import seaborn as sns
 
     # Get a reasonable set of markers and color palette
     markers = mpl_lines.Line2D.filled_markers
@@ -1235,11 +1251,11 @@ def plot_unsupervised_analysis(results, y, figsize=(12,7.5), alpha=1, gray_index
 
 # Sample with replacement each label-group of the potentially unbalanced inputted data matrix and corresponding labels
 # Return the corresponding balanced data matrix and corresponding labels, along with the numerical indexes that could be used to obtain these
-def sample_populations(X2, y2, n=10):
+def sample_populations(X2, y2, n=10, log_fcn=print):
 
     # Ensure the indexes of the input matrix and array match
     if not y2.index.equals(X2.index):
-        print('ERROR: Indexes of input X and y do not match')
+        log_fcn('ERROR: Indexes of input X and y do not match')
         exit()
 
     # Initialize the data matrix
@@ -1253,7 +1269,7 @@ def sample_populations(X2, y2, n=10):
 
     # Check that we did what we think we did
     if (not (X.iloc[:,-2] == y2).all()) or (not (X.iloc[:,:-2] == X2).all().all()):
-        print('ERROR: We didn\'t correctly place the data and label matrices inside the combined data matrix')
+        log_fcn('ERROR: We didn\'t correctly place the data and label matrices inside the combined data matrix')
         exit()
 
     # Sample with replacement each group (unique label) within the combined data matrix
@@ -1266,7 +1282,7 @@ def sample_populations(X2, y2, n=10):
 
     # Ensure that all we really need is num_indexes
     if (not (y2.iloc[num_indexes] == y).all()) or (not (X2.iloc[num_indexes,:] == X).all().all()):
-        print('ERROR: We cannot reproduce the results from num_indexes alone, as we should be able')
+        log_fcn('ERROR: We cannot reproduce the results from num_indexes alone, as we should be able')
         exit()
 
     # Return the balanced data and labels and reproducing numerical indexes
@@ -1309,12 +1325,13 @@ def explore_sample_size(X, y, tsne_res, n_range=range(100,601,200)):
 # Run some random forest classification models on the data, saving the results and calculating the accuracies of the models on the entire input dataset (i.e., our test set, which includes the training data, which is obtained by bootstrap sampling within the classes)
 # This bootstrap sampling from each class is sort of what we're forced to do given the small size of the minority classes, though we see the accuracy is still so good that we can probably do a "real" study (i.e., with a training and test set)
 #def calculate_whole_dataset_accuracy_vs_bootstrap_sampling_size(X, y, project_directory, possible_n=None, ntrials=10):
-def generate_random_forest_models(X, y, project_directory, study_name, possible_n=None, ntrials=10):
+def generate_random_forest_models(X, y, project_directory, study_name, possible_n=None, ntrials=10, log_fcn=print):
 
     # Import relevant modules
+    import os
+
     import numpy as np
     import sklearn.ensemble as sk_ens
-    import os
     tci = get_tci_library()
 
     # Constant
@@ -1334,18 +1351,18 @@ def generate_random_forest_models(X, y, project_directory, study_name, possible_
 
         # For each sampling size, for each trial...
         for itrial in range(ntrials):
-            print('On trial {} of {}...'.format(itrial+1, ntrials))
+            log_fcn('On trial {} of {}...'.format(itrial+1, ntrials))
 
             rnd_clf_holder_inside = []
             for iin, n in enumerate(possible_n):
-                print('  On sample size {} of {} (n={})...'.format(iin+1, n_sample_sizes, n))
+                log_fcn('  On sample size {} of {} (n={})...'.format(iin+1, n_sample_sizes, n))
 
                 # Sample the input dataset using the current sampling size n
                 X_bal, y_bal, _ = sample_populations(X, y, n=n)
 
                 # Check feature equality
                 if not X.columns.equals(X_bal.columns):
-                    print('ERROR: Imbalanced and balanced features are not the same')
+                    log_fcn('ERROR: Imbalanced and balanced features are not the same')
                     exit()
 
                 # Fit a random forest classifier to the sampled, balanced dataset
@@ -1392,7 +1409,7 @@ def plot_accuracy_vs_sample_size(accuracies, possible_n, study_name):
 
 
 # Determine the genes in decreasing order of average feature importance, calculating all necessary importance metrics along the way
-def calculate_average_feature_importance(feature_names, rnd_clf_holder, num_last_sample_sizes=10, do_printing=False):
+def calculate_average_feature_importance(feature_names, rnd_clf_holder, num_last_sample_sizes=10, do_printing=False, log_fcn=print):
 
     # Sample call: calculate_average_feature_importance(X2.columns, rnd_clf_holder, num_last_sample_sizes=10)
 
@@ -1457,7 +1474,7 @@ def calculate_average_feature_importance(feature_names, rnd_clf_holder, num_last
 
         # Set the corresponding elements in the arrays
         if do_printing:
-            print('place={},\tnorm_score={:4.2f}, num_in_rank={}, raw_score={:7.5f}, start_ind={}, stop_ind={}'.format(tie_string+str(place), norm_score, num_in_rank, raw_score, start_ind, stop_ind))
+            log_fcn('place={},\tnorm_score={:4.2f}, num_in_rank={}, raw_score={:7.5f}, start_ind={}, stop_ind={}'.format(tie_string+str(place), norm_score, num_in_rank, raw_score, start_ind, stop_ind))
         place_arr[start_ind:stop_ind] = tie_string + str(place)
         norm_score_arr[start_ind:stop_ind] = norm_score
         num_in_rank_arr[start_ind:stop_ind] = num_in_rank

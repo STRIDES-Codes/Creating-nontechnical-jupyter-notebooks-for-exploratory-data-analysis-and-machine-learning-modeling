@@ -1,10 +1,7 @@
-import os, sys
-
-
 import os
+import sys
 
 import target_class_lib as tc
-
 
 project_directory = '/srv/codathon'
 
@@ -18,6 +15,8 @@ metadata_file = os.path.join(project_directory, 'data', 'metadata.cart.2020-07-0
 
 LABEL_COLUMN_NAME = 'label 1'
 
+DEFAULT_LOG_FUNCTION = lambda *args: None
+
 # TODO Define user inputs
 ## 
 
@@ -28,9 +27,9 @@ def clean_up_index_labels(df):
     return df
 
 
-def get_data():
+def get_data(log_fcn=DEFAULT_LOG_FUNCTION):
     # Loads the data downloaded from the GDC Data Portal
-    df_samples, df_counts = tc.load_gdc_data(sample_sheet_file, metadata_file, links_dir)
+    df_samples, df_counts = tc.load_gdc_data(sample_sheet_file, metadata_file, links_dir, log_fcn=log_fcn)
     
     # Add a labels column based on the project id and sample type 
     # columns and show the unique values by decreasing frequency
@@ -39,11 +38,11 @@ def get_data():
     clean_up_index_labels(df_samples)
     clean_up_index_labels(df_counts)
 
-    df_fpkm, df_fpkm_uq = tc.get_fpkm(df_counts, annotation_file, df_samples, links_dir)
+    df_fpkm, df_fpkm_uq = tc.get_fpkm(df_counts, annotation_file, df_samples, links_dir, log_fcn=log_fcn)
     return df_samples, df_counts, df_fpkm, df_fpkm_uq
 
 
-def drop_multiperson_samples(samples, counts, fpkm, pkm_uq):
+def drop_multiperson_samples(samples, counts, fpkm, pkm_uq, log_fcn=DEFAULT_LOG_FUNCTION):
     # Removes samples that correspond to multiple cases (i.e., people)
     df_samples, indexes_to_keep, _ = tc.drop_multiperson_samples(samples)
     df_counts = counts.iloc[indexes_to_keep,:]
@@ -52,22 +51,22 @@ def drop_multiperson_samples(samples, counts, fpkm, pkm_uq):
     return df_samples, df_counts, df_fpkm, df_fpkm_uq
 
 
-def apply_cutoffs(samples, counts, fpkm, pkm_uq):
-    df_samples, indexes_to_keep = tc.remove_bad_samples(samples)
+def apply_cutoffs(samples, counts, fpkm, pkm_uq, log_fcn=DEFAULT_LOG_FUNCTION):
+    df_samples, indexes_to_keep = tc.remove_bad_samples(samples, log_fcn=log_fcn)
     df_counts = counts.iloc[indexes_to_keep,:]
     df_fpkm = fpkm.iloc[indexes_to_keep,:]
     df_fpkm_uq = pkm_uq.iloc[indexes_to_keep,:]
     return df_samples, df_counts, df_fpkm, df_fpkm_uq
 
 
-def perform_eda(samples):
+def perform_eda(samples, log_fcn=DEFAULT_LOG_FUNCTION):
     # Performs exploratory data analysis on the sample labels
-    tc.eda_labels(samples)
+    tc.eda_labels(samples, log_fcn=log_fcn)
 
 
-def calculate_tpm(counts):
+def calculate_tpm(counts, log_fcn=DEFAULT_LOG_FUNCTION):
     # Calculate the TPM using the counts and gene lengths
-    df_tpm = tc.get_tpm(counts, annotation_file)
+    df_tpm = tc.get_tpm(counts, annotation_file, log_fcn=log_fcn)
     df_tpm.shape
     return clean_up_index_labels(df_tpm)
 
@@ -80,7 +79,6 @@ def perform_pca(counts_dataframe, samples):
     import sklearn.decomposition as sk_decomp
     pca = sk_decomp.PCA(n_components=10)
     pca_res = pca.fit_transform(counts_dataframe.iloc[:,:500])
-    print('Top {} PCA explained variance ratios: {}'.format(10, pca.explained_variance_ratio_))
     ax = tc.plot_unsupervised_analysis(pca_res, labels_series)
     ax.set_title('PCA - variance-stabilizing transformation')
 
