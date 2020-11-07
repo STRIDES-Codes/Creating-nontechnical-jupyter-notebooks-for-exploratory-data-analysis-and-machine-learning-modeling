@@ -1,5 +1,6 @@
 import os
 import sys
+from collections import defaultdict
 
 import target_class_lib as tc
 
@@ -42,20 +43,33 @@ def get_data(log_fcn=DEFAULT_LOG_FUNCTION):
     return df_samples, df_counts, df_fpkm, df_fpkm_uq
 
 
-def drop_multiperson_samples(samples, counts, fpkm, pkm_uq, log_fcn=DEFAULT_LOG_FUNCTION):
+def drop_multiperson_samples(samples, counts, fpkm, fpkm_uq, log_fcn=DEFAULT_LOG_FUNCTION):
     # Removes samples that correspond to multiple cases (i.e., people)
-    df_samples, indexes_to_keep, _ = tc.drop_multiperson_samples(samples)
-    df_counts = counts.iloc[indexes_to_keep,:]
-    df_fpkm = fpkm.iloc[indexes_to_keep,:]
-    df_fpkm_uq = pkm_uq.iloc[indexes_to_keep,:]
+    df_samples, indices_to_keep, _ = tc.drop_multiperson_samples(samples)
+    df_counts = counts.iloc[indices_to_keep,:]
+    df_fpkm = fpkm.iloc[indices_to_keep,:]
+    df_fpkm_uq = fpkm_uq.iloc[indices_to_keep,:]
     return df_samples, df_counts, df_fpkm, df_fpkm_uq
 
 
-def apply_cutoffs(samples, counts, fpkm, pkm_uq, log_fcn=DEFAULT_LOG_FUNCTION):
-    df_samples, indexes_to_keep = tc.remove_bad_samples(samples, log_fcn=log_fcn)
-    df_counts = counts.iloc[indexes_to_keep,:]
-    df_fpkm = fpkm.iloc[indexes_to_keep,:]
-    df_fpkm_uq = pkm_uq.iloc[indexes_to_keep,:]
+def filter_data_by_column_value(samples, counts, fpkm, fpkm_uq, column, allowed_values=None):
+    if allowed_values is not None:
+        indices_to_keep = samples[column].isin(allowed_values).values
+        df_samples = samples[indices_to_keep]
+        df_counts = counts[indices_to_keep]
+        df_fpkm = fpkm[indices_to_keep]
+        df_fpkm_uq = fpkm_uq[indices_to_keep]
+        return df_samples, df_counts, df_fpkm, df_fpkm_uq
+    else:
+        return samples, counts, fpkm, fpkm_uq
+
+    
+
+def apply_cutoffs(samples, counts, fpkm, fpkm_uq, nstd_by_column=defaultdict(lambda: 2), log_fcn=DEFAULT_LOG_FUNCTION):
+    df_samples, indices_to_keep = tc.remove_bad_samples(samples, nstd_by_column, log_fcn=log_fcn)
+    df_counts = counts.iloc[indices_to_keep,:]
+    df_fpkm = fpkm.iloc[indices_to_keep,:]
+    df_fpkm_uq = fpkm_uq.iloc[indices_to_keep,:]
     return df_samples, df_counts, df_fpkm, df_fpkm_uq
 
 

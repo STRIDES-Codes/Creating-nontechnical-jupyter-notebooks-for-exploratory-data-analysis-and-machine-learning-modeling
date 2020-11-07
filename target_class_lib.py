@@ -443,70 +443,36 @@ def get_labels_dataframe(sample_sheet_file, metadata_file, log_fcn=print):
     return(df)
 
 
-# Plot histograms of the numerical columns of the samples/labels before and after cutoffs could theoretically be applied, and log_fcn out a summary of what we should probably do
-def remove_bad_samples(df_samples, nstd=2, log_fcn=print):
+# Plot histograms of the numerical columns of the samples/labels before and after cutoffs could theoretically be applied, and print out a summary of what we should probably do
+def remove_bad_samples(df_samples, nstd_by_column, log_fcn=print):
 
+    higher_is_better_by_column = {
+        'average base quality': True, 
+        'proportion_base_mismatch': False, 
+        'proportion_reads_mapped': True
+    }
+        
     # Import relevant library
-    import matplotlib.pyplot as plt
     import numpy as np
-
-    # Generate the initial set of histograms on the numerical data in the samples dataframe
-    _, ax = plt.subplots(figsize=(12,8), facecolor='w')
-    ax_hist = df_samples.hist(ax=ax)
-
-    # "Constants" based on viewing the first set of histograms above so that we can figure out which ones to use to filter the data
-    columns = ['average base quality', 'proportion_base_mismatch', 'proportion_reads_mapped']
-    higher_is_better = [True, False, True]
-    #sp_locs = [(0,0), (1,1), (2,1)]
 
     # Start off filtering none of the data
     valid_ind = np.full((len(df_samples),), True)
 
-    # For each plot containing data we'd like to use to filter our samples...
-    #for col, hib, sp_loc in zip(columns, higher_is_better, sp_locs):
-    for col, hib in zip(columns, higher_is_better):
-
+    for column, nstd in nstd_by_column.items():
+        vals = df_samples[column]
+        higher_is_better = higher_is_better_by_column[column]
         # Determine +1 or -1 depending on whether higher is better (if higher is better, use -1)
-        sign = -2*int(hib) + 1
-
-        # Get the data values of the current plot
-        vals = df_samples[col]
+        sign = -2*int(higher_is_better) + 1
 
         # Calculate the cutoff for the current plot using the inputted number of standard deviations from the mean as the cutoff
         cutoff = vals.mean() + sign*nstd*vals.std()
 
-        # Determine the current axis in the overall histogram plot
-        #ax = ax_hist[sp_loc]
-        for ax in ax_hist.flatten():
-            if ax.title.get_text() == col:
-                break
-
-        # Determine the y limits of that plot
-        ylim = ax.get_ylim()
-
-        # Plot the calculated cutoff as a vertical red line
-        ax.plot([cutoff,cutoff], ylim, 'r')
-
         # Determine a boolean array of where the values fall outside the cutoffs and log_fcn how many such bad values there are
         bad_vals = (sign*vals) > (sign*cutoff)
-        log_fcn('There are {} bad values in the "{}" plot'.format(sum(bad_vals), col))
+        log_fcn('There are {} bad values in the "{}" plot'.format(sum(bad_vals), column))
 
         # Update the boolean filtering array using the current set of bad values
         valid_ind[bad_vals]=False
-
-    # Store some numbers for easier calculation below: the total number of samples and the aggregate number of bad samples
-    ntot = len(valid_ind)
-    nbad_tot = ntot - sum(valid_ind)
-
-    # Print some output of the analysis and what we'd recommend we do in the future
-    log_fcn('Most bad values are overlapping; taken together, there are {} bad values'.format(nbad_tot))
-    log_fcn('We should likely use these cutoffs to remove the bad samples; this will only remove {:3.1f}% of the data, leaving {} good samples'.format(nbad_tot/ntot*100, ntot-nbad_tot))
-    log_fcn('See for example the two generated images: the first is the original data with the cutoffs plotted in red, and the second is the filtered data with the cutoffs applied')
-    # log_fcn('For the time being though, we are leaving the data untouched!')
-
-    # Plot the same histograms using the filtered samples to show what would happen if we applied the calculated cutoffs
-    _, ax = plt.subplots(figsize=(12,8), facecolor='w')
-    _ = df_samples.iloc[valid_ind,:].hist(ax=ax)
 
     return(df_samples.iloc[valid_ind,:], valid_ind)
 
