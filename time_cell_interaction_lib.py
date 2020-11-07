@@ -8,7 +8,6 @@ class TIMECellInteraction:
         import os
 
         # These next two blocks aren't technically needed but it helps to set these here to help for linting purposes
-        
         # These are set in this method but not saved in the traditional way (instead, using make_pickle_dict())
         self.pickle_dir = None
         self.unique_species = []
@@ -207,8 +206,9 @@ class TIMECellInteraction:
     def calculate_null_distributions(self, nsamplings=500):
 
         # Import relevant modules
-        import numpy as np
         import os
+
+        import numpy as np
 
         # Set variables already defined as attributes
         k_max = self.k_max
@@ -392,9 +392,10 @@ class TIMECellInteraction:
         #   So if nneighbor_all==1, then loop method index (imethod0 below) of 2 should go to general method index of 3
 
         # Import relevant modules
-        import numpy as np
         import os
-        
+
+        import numpy as np
+
         # Set variables already defined as attributes
         null_data_by_slide = self.null_data_by_slide
         k_max = self.k_max
@@ -731,6 +732,7 @@ class TIMECellInteraction:
 
         # Import relevant modules
         import os
+
         import numpy as np
 
         # Set variables already defined as attributes
@@ -867,8 +869,11 @@ class TIMECellInteraction:
         matplotlib.use('Agg')        
         
         # Import relevant modules
+        import functools
+        import os
+
+        import matplotlib
         import matplotlib.pyplot as plt
-        import matplotlib, os, functools
 
         # Set variables already defined as attributes
         slides = self.data_by_slide
@@ -1288,8 +1293,9 @@ def get_descriptive_cell_label(phenotype_list, mapping_dict):
 def get_dataframe_info(data, phenotypes, mapping_dict):
 
     # Import relevant modules
-    import numpy as np
     from operator import itemgetter
+
+    import numpy as np
 
     # Create an ndarray containing all the unique species in the dataset in descending order of frequency with columns: integer label, string list, frequency, color(s), circle size(s)
     plotting_map = [[-(list(data['Species int']).count(x)), list(int2list(phenotypes, x)), x] for x in np.unique(data['Species int'])] # create a list of the unique species in the dataset with columns: -frequency, string list, integer label
@@ -1444,10 +1450,11 @@ def int2list(phenotypes, species):
 
 
 # Load some data from a pickle file
-def load_pickle(pickle_dir, pickle_file):
-    import pickle, os
+def load_pickle(pickle_dir, pickle_file, log_fcn=print):
+    import os
+    import pickle
     filename = os.path.join(pickle_dir, pickle_file)
-    print('Reading pickle file '+filename+'...')
+    log_fcn('Reading pickle file '+filename+'...')
     with open(filename, 'rb') as f:
         data_to_load = pickle.load(f)
     return(data_to_load)
@@ -1455,7 +1462,8 @@ def load_pickle(pickle_dir, pickle_file):
 
 # Write a pickle file from some data
 def make_pickle(data_to_save, pickle_dir, pickle_file):
-    import pickle, os
+    import os
+    import pickle
     filename = os.path.join(pickle_dir, pickle_file)
     print('Creating pickle file '+filename+'...')
     if not os.path.exists(pickle_dir):
@@ -1498,8 +1506,8 @@ def plot_dens(fig, dens, dens_range, pretty_names, filepath, dpi, title):
 # Plot a heatmap (from image) on a given axis (ax) and the image range (dens_range)
 def plot_dens_heatmap(ax, image, dens_range, axis_labels, title):
     ax.cla()
-    import numpy as np
     import matplotlib.pyplot as plt
+    import numpy as np
     ax.imshow(image, vmin=dens_range[0], vmax=dens_range[1])
     ticks_arr = np.arange(len(axis_labels))
     ax.set_xticks(ticks_arr)
