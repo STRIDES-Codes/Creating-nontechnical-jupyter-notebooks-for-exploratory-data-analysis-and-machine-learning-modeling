@@ -11,15 +11,30 @@ class App:
 
     def __init__(self):
         self.container = widgets.Tab()
-        self.data_tab = self.add_tab('Select Data')
+        self.add_data_tab()
+        self.log_tab = self.add_tab('Logs')
+        self.log_context = self.log_tab.add_child()
 
-        self.data_selection_btn = widgets.Button(description='Get Data')
+
+    def log_fcn(self, *args):
+        self.log_context.append_stdout(' '.join([str(arg) for arg in args]))
+
+    def add_data_tab(self):
+        self.data_tab = self.add_tab('Data')
+
+        self.data_selection_btn = widgets.Button(description='Load Data', icon='refresh')
         self.data_selection_btn.on_click(self.filter_data_on_request)
         self.data_tab.add_child(self.data_selection_btn)
 
         # Initialize data
         self.df_samples, self.df_counts, self.df_fpkm, self.df_fpkm_uq = api.get_data()
 
+        self.add_data_selectors()
+
+        # Add a handle for plots of selected data
+        self.eda_ctx = self.data_tab.add_child()
+
+    def add_data_selectors(self):
         # Add project and sample type selctors
         self.project_selectors = self.create_categorical_value_selectors(self.data_tab, PROJECT_ID_COLUMN)
         self.sample_type_selectors = self.create_categorical_value_selectors(self.data_tab, SAMPLE_TYPE_COLUMN)
@@ -28,25 +43,28 @@ class App:
             children=[widgets.Label(value='Select Projects')] + list(self.project_selectors.values())
         )
         sample_type_selector_box = widgets.VBox(
-            children=[widgets.Label(value='Select Sample Types')] + list(self.sample_type_selectors.values())
+            children=[widgets.Label(value='Select Sample Types')] + list(self.sample_type_selectors.values()),
+            min_width=1200
         )
+        nstd_box = self.add_sliders_to_filter_data_by_nstd()
+        
+        selector_group = widgets.HBox(children=[project_selector_box, sample_type_selector_box])
+        self.data_tab.add_child(selector_group)
+        self.data_tab.add_child(nstd_box)
 
-
-        nstd_by_column = {
-                'average base quality': 2, 
-                'proportion_base_mismatch': 2,
-                'proportion_reads_mapped': 2
-        }
-
+    def add_sliders_to_filter_data_by_nstd(self):
         self.nstd_sliders = {}
+        box = widgets.VBox(children=[widgets.Label(value='Remove Outliers')])
 
         for column in higher_is_better_by_column.keys():
+            box.children += (widgets.Label(value=column),)
+
             slider = widgets.FloatSlider(
                 value=2.0,
                 min=0,
                 max=10.0,
                 step=0.1,
-                description=column,
+                description='',
                 disabled=False,
                 continuous_update=False,
                 orientation='horizontal',
@@ -54,22 +72,9 @@ class App:
                 readout_format='.1f',
             )
             self.nstd_sliders[column] = slider
-
-        nstd_box = widgets.VBox(
-            children=[widgets.Label(value='Remove Outliers')] + list(self.nstd_sliders.values())
-        )
-        selector_group = widgets.HBox(children=[project_selector_box, sample_type_selector_box, nstd_box])
-        self.data_tab.add_child(selector_group)
-
-        # Add a handle for plots of selected data
-        self.eda_ctx = self.data_tab.add_child()
-
-        self.log_tab = self.add_tab('Logs')
-        self.log_context = self.log_tab.add_child()
-
-
-    def log_fcn(self, *args):
-        self.log_context.append_stdout(' '.join([str(arg) for arg in args]))
+            box.children += (slider,)
+        
+        return box
 
     def filter_data_on_request(self, _):
         self.df_samples, self.df_counts, self.df_fpkm, self.df_fpkm_uq = api.get_data()
@@ -108,7 +113,7 @@ class App:
                 value=True,
                 description=value,
                 disabled=False,
-                indent=False
+                indent=False,
             )
             selectors[value] = selector
         return selectors
