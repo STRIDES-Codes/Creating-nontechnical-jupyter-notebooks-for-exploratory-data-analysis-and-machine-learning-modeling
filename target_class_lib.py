@@ -54,7 +54,7 @@ def calculate_exon_lengths(gencode_gtf_file, log_fcn=print):
 
             # Get the current row of data in the dataframe
             curr_row = df_gencode_exons.iloc[iidx,:]
-            
+
             # Output progress if the time is right
             if (iidx%unit_len) == 0:
                 log_fcn('{}/{} complete...'.format(istep,nsteps))
@@ -395,7 +395,7 @@ def get_labels_dataframe(sample_sheet_file, metadata_file, log_fcn=print):
 
         # If there are more than one HTSeq counts files for the current sample, it doesn't make sense to me to keep multiple analyses of the same sample, so just choose the analysis with the best base quality score (or the first if multiple files have the same best score)
         else:
-           
+
             # Initialize variables in this small loop over possible HTSeq counts files
             best_score = -1
             best_counts_file = None
@@ -511,12 +511,17 @@ def drop_multiperson_samples(df_samples, log_fcn=print):
 
 
 # Perform exploratory data analysis on the sample labels
-def eda_labels(df_samples, log_fcn=print):
+def eda_labels(df_samples, log_fcn=print, plt_ctx=None):
 
     # Import relevant library
     import random
 
     import matplotlib.pyplot as plt
+
+    import contextlib
+
+    if not plt_ctx:
+        plt_ctx = contextlib.nullcontext()
 
     # Add the index "column" as an actual column to the dataframe so we can analyze the index column in the same manner as the other columns
     df_samples[df_samples.index.name] = df_samples.index
@@ -533,8 +538,10 @@ def eda_labels(df_samples, log_fcn=print):
     rand_index = random.randrange(nsamples)
 
     # Plot histograms of the numeric data
-    _, ax = plt.subplots(figsize=(12,8), facecolor='w')
-    _ = df_samples.hist(ax=ax)
+    with plt_ctx:
+        fig, ax = plt.subplots(figsize=(12,8), facecolor='w')
+        _ = df_samples.hist(ax=ax)
+        plt.show(fig)
 
     # Determine the non-numeric columns
     non_numeric_cols = df_samples.select_dtypes(exclude='number').columns
@@ -608,12 +615,12 @@ def get_counts(df_samples, links_dir, log_fcn=print):
 
         # Read in the counts data
         sr_counts = pd.read_csv(os.path.join(links_dir, counts_fn), sep='\t', skipfooter=5, names=['id','intensity']).set_index('id').sort_index().iloc[:,0] # assume this is of the HTSeq (as opposed to STAR) format
-        
+
         # Append the read-in and calculated values to running lists
         srs_counts.append(sr_counts)
 
         log_fcn('\r', '{:3.1f}% complete...'.format((isample+1)/nsamples*100), end='')
-    
+
     # Put the list of series into a Pandas dataframe
     df_counts = pd.DataFrame(srs_counts, index=df_samples.index)
 
@@ -941,7 +948,7 @@ def write_sample_for_deseq2_input(srs_labels, df_counts, data_directory, dataset
         log_fcn('ERROR: The actual list of labels/conditions is not what\'s expected')
         exit()
 
-    # Check that the indexes of the counts and labels that we're going to write out are the same    
+    # Check that the indexes of the counts and labels that we're going to write out are the same
     if not counts_to_use.columns.equals(labels_to_use.index):
         log_fcn('ERROR: Indexes/columns of the labels/counts are inconsistent')
         exit()
@@ -989,7 +996,7 @@ def write_all_data_for_deseq2_input(srs_labels, df_counts, data_directory, datas
     if drop_zero_genes:
         counts_to_use = counts_to_use[(counts_to_use!=0).any(axis=1)]
 
-    # Check that the indexes of the counts and labels that we're going to write out are the same    
+    # Check that the indexes of the counts and labels that we're going to write out are the same
     if not counts_to_use.columns.equals(labels_to_use.index):
         log_fcn('ERROR: Indexes/columns of the labels/counts are inconsistent')
         exit()
@@ -1013,10 +1020,10 @@ def write_all_data_for_deseq2_input(srs_labels, df_counts, data_directory, datas
 
 
 # Create and plot PCA and tSNE analyses
-def plot_pca_and_tsne(data_directory, dataset_name, transformation_name='variance-stabilizing', ntop=500, n_components_pca=10, alpha=1, dpi=300, y=None, save_figure=False, log_fcn=print):
+def plot_pca_and_tsne(data_directory, dataset_name, transformation_name='variance-stabilizing', ntop=500, n_components_pca=10, alpha=1, dpi=300, y=None, save_figure=False, log_fcn=print, plt_ctx=None):
 
     # Sample call: plot_pca_and_tsne('/data/BIDS-HPC/private/projects/dmi2/data/datasets/all_data/assay_normal_transformation.csv', '/data/BIDS-HPC/private/projects/dmi2/data/datasets/all_data/coldata_normal_transformation.csv', 'normal', '/data/BIDS-HPC/private/projects/dmi2/data/datasets/all_data')
-    
+
     # Import relevant libraries
     import os
 
@@ -1026,6 +1033,11 @@ def plot_pca_and_tsne(data_directory, dataset_name, transformation_name='varianc
     import seaborn as sns
     import sklearn.decomposition as sk_decomp
     import sklearn.manifold as sk_manif
+
+    import contextlib
+
+    if not plt_ctx:
+        plt_ctx = contextlib.nullcontext()
 
     # Process the arguments
     transformation_name_filename = transformation_name.lower().replace(' ','_').replace('-','_') # get a version of the transformation_name suitable for filenames
@@ -1067,24 +1079,28 @@ def plot_pca_and_tsne(data_directory, dataset_name, transformation_name='varianc
     color_palette = sns.color_palette("hls", nclasses)
 
     # Plot and save the PCA
-    fig = plt.figure(figsize=(12,7.5), facecolor='w')
-    ax = sns.scatterplot(x=pca_res[:,0], y=pca_res[:,1], hue=y, style=y, palette=color_palette, legend="full", alpha=alpha, markers=marker_list, edgecolor='k')
-    ax.legend(bbox_to_anchor=(1,1))
-    ax.set_title('PCA - ' + transformation_name + ' transformation')
-    if save_figure:
-        fig.savefig(os.path.join(data_dir, 'pca_' + transformation_name_filename + '_transformation' + fn_addendum + '.png'), dpi=dpi, bbox_inches='tight')
+    with plt_ctx:
+        fig = plt.figure(figsize=(12,7.5), facecolor='w')
+        ax = sns.scatterplot(x=pca_res[:,0], y=pca_res[:,1], hue=y, style=y, palette=color_palette, legend="full", alpha=alpha, markers=marker_list, edgecolor='k')
+        ax.legend(bbox_to_anchor=(1,1))
+        ax.set_title('PCA - ' + transformation_name + ' transformation')
+        if save_figure:
+            fig.savefig(os.path.join(data_dir, 'pca_' + transformation_name_filename + '_transformation' + fn_addendum + '.png'), dpi=dpi, bbox_inches='tight')
+        plt.show(fig)
 
     # Perform tSNE analysis
     tsne = sk_manif.TSNE(n_components=2)
     tsne_res = tsne.fit_transform(X)
 
     # Plot and save the tSNE analysis
-    fig = plt.figure(figsize=(12,7.5), facecolor='w')
-    ax = sns.scatterplot(x=tsne_res[:,0], y=tsne_res[:,1], hue=y, style=y, palette=color_palette, legend="full", alpha=alpha, markers=marker_list, edgecolor='k')
-    ax.legend(bbox_to_anchor=(1,1))
-    ax.set_title('tSNE - ' + transformation_name + ' transformation')
-    if save_figure:
-        fig.savefig(os.path.join(data_dir, 'tsne_' + transformation_name_filename + '_transformation' + fn_addendum + '.png'), dpi=dpi, bbox_inches='tight')
+    with plt_ctx:
+        fig = plt.figure(figsize=(12,7.5), facecolor='w')
+        ax = sns.scatterplot(x=tsne_res[:,0], y=tsne_res[:,1], hue=y, style=y, palette=color_palette, legend="full", alpha=alpha, markers=marker_list, edgecolor='k')
+        ax.legend(bbox_to_anchor=(1,1))
+        ax.set_title('tSNE - ' + transformation_name + ' transformation')
+        if save_figure:
+            fig.savefig(os.path.join(data_dir, 'tsne_' + transformation_name_filename + '_transformation' + fn_addendum + '.png'), dpi=dpi, bbox_inches='tight')
+        plt.show(fig)
 
 
 # Run VST using DESeq2 on data exported from Python
@@ -1161,8 +1177,7 @@ def run_vst(counts_dataframe, labels_series, project_directory, log_fcn=print):
 
 
 # Plot a PCA or tSNE analysis
-def plot_unsupervised_analysis(results, y, figsize=(12,7.5), alpha=1, gray_indexes=None, ax=None, legend='full'):
-
+def plot_unsupervised_analysis(results, y, figsize=(12,7.5), alpha=1, gray_indexes=None, ax=None, legend='full', plt_ctx=None):
     # Sample calls:
     #
     #   # Perform PCA
@@ -1186,6 +1201,11 @@ def plot_unsupervised_analysis(results, y, figsize=(12,7.5), alpha=1, gray_index
     import matplotlib.pyplot as plt
     import seaborn as sns
 
+    import contextlib
+
+    if not plt_ctx:
+        plt_ctx = contextlib.nullcontext()
+
     # Get a reasonable set of markers and color palette
     markers = mpl_lines.Line2D.filled_markers
     nclasses = len(set(y))
@@ -1193,24 +1213,26 @@ def plot_unsupervised_analysis(results, y, figsize=(12,7.5), alpha=1, gray_index
     color_palette = sns.color_palette("hls", nclasses)
 
     # Plot results
-    if ax is None:
-        _, ax = plt.subplots(figsize=figsize, facecolor='w')
-    #ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend="full", alpha=alpha, markers=marker_list, edgecolor='k')
-    #ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend=legend, alpha=(0.2 if gray_indexes is not None else alpha), markers=marker_list, edgecolor='k', ax=ax)
+    with plt_ctx:
+        if ax is None:
+            fig, ax = plt.subplots(figsize=figsize, facecolor='w')
+        #ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend="full", alpha=alpha, markers=marker_list, edgecolor='k')
+        #ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend=legend, alpha=(0.2 if gray_indexes is not None else alpha), markers=marker_list, edgecolor='k', ax=ax)
 
-    ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend=legend, alpha=(0.2 if gray_indexes is not None else alpha), edgecolor='k', ax=ax)
+        ax = sns.scatterplot(x=results[:,0], y=results[:,1], hue=y, style=y, palette=color_palette, legend=legend, alpha=(0.2 if gray_indexes is not None else alpha), edgecolor='k', ax=ax)
 
-    if gray_indexes is not None:
-        import collections
-        gray_indexes=list(collections.OrderedDict.fromkeys(gray_indexes.to_list()))
-        #ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], hue='gray', style=y.iloc[gray_indexes], palette=color_palette, markers=marker_list, edgecolor='k', ax=ax)
-       # ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], color='gray', style=y.iloc[gray_indexes], palette=color_palette, markers=marker_list, edgecolor='k', ax=ax, alpha=1, legend=legend)
-        ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], color='gray', style=y.iloc[gray_indexes], palette=color_palette, edgecolor='k', ax=ax, alpha=1, legend=legend)
-    if legend is not False:
-        ax.legend(bbox_to_anchor=(1,1))
+        if gray_indexes is not None:
+            import collections
+            gray_indexes=list(collections.OrderedDict.fromkeys(gray_indexes.to_list()))
+            #ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], hue='gray', style=y.iloc[gray_indexes], palette=color_palette, markers=marker_list, edgecolor='k', ax=ax)
+        # ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], color='gray', style=y.iloc[gray_indexes], palette=color_palette, markers=marker_list, edgecolor='k', ax=ax, alpha=1, legend=legend)
+            ax = sns.scatterplot(x=results[gray_indexes,0], y=results[gray_indexes,1], color='gray', style=y.iloc[gray_indexes], palette=color_palette, edgecolor='k', ax=ax, alpha=1, legend=legend)
+        if legend is not False:
+            ax.legend(bbox_to_anchor=(1,1))
 
-    # if save_figure:
-    #     fig.savefig(os.path.join(data_dir, 'pca_or_tsne_' + transformation_name_filename + '_transformation' + fn_addendum + '.png'), dpi=300, bbox_inches='tight')
+        # if save_figure:
+        #     fig.savefig(os.path.join(data_dir, 'pca_or_tsne_' + transformation_name_filename + '_transformation' + fn_addendum + '.png'), dpi=300, bbox_inches='tight')
+        plt.show(fig)
 
     return(ax)
 
@@ -1256,34 +1278,42 @@ def sample_populations(X2, y2, n=10, log_fcn=print):
 
 
 # Create a figure helping to explore the extent of sampling each unique label in the dataset (i.e., each group)
-def explore_sample_size(X, y, tsne_res, n_range=range(100,601,200)):
+def explore_sample_size(X, y, tsne_res, n_range=range(100,601,200), plt_ctx=None):
 
     # Import relevant library
     import matplotlib.pyplot as plt
 
+    import contextlib
+
+    if not plt_ctx:
+        plt_ctx = contextlib.nullcontext()
+
     # Constant
     base_figsize = (16,5) # this is the size of an entire two-image row
-    
+
     # Get the list of possible values of n from its inputted range
     n_values = [x for x in n_range]
     nn = len(n_values)
 
     # Initialize the figure
-    fig, axs = plt.subplots(nrows=nn, ncols=2, figsize=(base_figsize[0], base_figsize[1]*nn), squeeze=False, facecolor='w')
+    with plt_ctx:
+        fig, axs = plt.subplots(nrows=nn, ncols=2, figsize=(base_figsize[0], base_figsize[1]*nn), squeeze=False, facecolor='w')
 
-    # For each sampling size...
-    for n_ind, n in enumerate(n_values):
+        # For each sampling size...
+        for n_ind, n in enumerate(n_values):
 
-        # Sample the imbalanced dataset
-        _, _, num_indexes = sample_populations(X, y, n=n)
+            # Sample the imbalanced dataset
+            _, _, num_indexes = sample_populations(X, y, n=n)
 
-        # Plot the sampling results themselves
-        ax = plot_unsupervised_analysis(tsne_res[num_indexes,:], y.iloc[num_indexes], alpha=0.5, ax=axs[n_ind,0], legend=False) # note y = y2.iloc[num_indexes]
-        ax.set_title('tSNE - VST - n={} - sample'.format(n))
+            # Plot the sampling results themselves
+            ax = plot_unsupervised_analysis(tsne_res[num_indexes,:], y.iloc[num_indexes], alpha=0.5, ax=axs[n_ind,0], legend=False) # note y = y2.iloc[num_indexes]
+            ax.set_title('tSNE - VST - n={} - sample'.format(n))
 
-        # Now plot the sampling results on top of the tSNE of the full dataset in order to see how much we covered
-        ax = plot_unsupervised_analysis(tsne_res, y, gray_indexes=num_indexes, ax=axs[n_ind,1])
-        ax.set_title('tSNE - VST - n={} - sample in gray on top of original'.format(n))
+            # Now plot the sampling results on top of the tSNE of the full dataset in order to see how much we covered
+            ax = plot_unsupervised_analysis(tsne_res, y, gray_indexes=num_indexes, ax=axs[n_ind,1])
+            ax.set_title('tSNE - VST - n={} - sample in gray on top of original'.format(n))
+        plt.show(fig)
+
 
     return(fig)
 
@@ -1355,23 +1385,30 @@ def generate_random_forest_models(X, y, project_directory, study_name, possible_
 
 
 # Plot the mean accuracy vs. the sampling sizes with error bars indicating the minimum and maximum accuracies over all the trials
-def plot_accuracy_vs_sample_size(accuracies, possible_n, study_name):
+def plot_accuracy_vs_sample_size(accuracies, possible_n, study_name, plt_ctx=None):
 
     # Import relevant libraries
 
     import matplotlib.pyplot as plt
     import numpy as np
 
+    import contextlib
+
+    if not plt_ctx:
+        plt_ctx = contextlib.nullcontext()
+
     # Calculate the average accuracy over all the trials
     means = accuracies.mean(axis=0)
 
     # Plot the mean accuracy vs. the sampling sizes with error bars indicating the minimum and maximum accuracies over all the trials
-    _, ax = plt.subplots(figsize=(10,6), facecolor='w')
-    _ = ax.errorbar(x=possible_n, y=means, yerr=np.row_stack((means-accuracies.min(axis=0), accuracies.max(axis=0)-means)), fmt='*-', ecolor='red', capsize=4)
-    ax.grid(True)
-    ax.set_xlabel('Sample size for each class')
-    ax.set_ylabel('Accuracy')
-    ax.set_title('Overall accuracy on input dataset - ' + study_name)
+    with plt_ctx:
+        fig, ax = plt.subplots(figsize=(10,6), facecolor='w')
+        _ = ax.errorbar(x=possible_n, y=means, yerr=np.row_stack((means-accuracies.min(axis=0), accuracies.max(axis=0)-means)), fmt='*-', ecolor='red', capsize=4)
+        ax.grid(True)
+        ax.set_xlabel('Sample size for each class')
+        ax.set_ylabel('Accuracy')
+        ax.set_title('Overall accuracy on input dataset - ' + study_name)
+        plt.show(fig)
 
 
 # Determine the genes in decreasing order of average feature importance, calculating all necessary importance metrics along the way
@@ -1386,7 +1423,7 @@ def calculate_average_feature_importance(feature_names, rnd_clf_holder, num_last
     # Constant
     #tol = 1e-8
     tol = 1e-16
-    
+
     # Get the big numpy array of feature importances
     n_features = len(feature_names)
     importances = np.zeros((n_features, len(rnd_clf_holder), len(rnd_clf_holder[0])))
@@ -1446,7 +1483,7 @@ def calculate_average_feature_importance(feature_names, rnd_clf_holder, num_last
         num_in_rank_arr[start_ind:stop_ind] = num_in_rank
         raw_score_arr[start_ind:stop_ind] = raw_score
 
-        # Update the starting index and the place        
+        # Update the starting index and the place
         start_ind = stop_ind
         place = place + 1
 
