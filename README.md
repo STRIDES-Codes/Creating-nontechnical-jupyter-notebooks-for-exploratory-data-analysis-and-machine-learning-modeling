@@ -1,13 +1,9 @@
-# [Name] - Creating Nontechnical Jupyter Notebooks For Exploratory Data Analysis and Machine Learning Modeling of Cancer Data
+# [Interactive Data Science] - Creating Nontechnical Jupyter Notebooks For Exploratory Data Analysis and Machine Learning Modeling of Cancer Data
 
 [![N|Solid](https://cldup.com/dTxpPi9lDf.thumb.png)](https://nodesource.com/products/nsolid)
 
 [![Build Status](https://travis-ci.org/joemccann/dillinger.svg?branch=master)](https://travis-ci.org/joemccann/dillinger)
 
-
-# How to run this app?
- - Clone this repository on Jupyter Hub.
- - Open main.ipynb and render with Voila
 
 
 # What is exploratory data analysis?
@@ -33,17 +29,10 @@ Oftentimes, nontechnical scientists and biologists want to analyze large sets of
 We believe that this problem is important because the faciliation of collaboration and understanding between biologists and data scientists can lead to new breakthroughs and enrich the research of those biologists. Data science and machine learning have made a mark on fields such as genomics and healthcare, and as the data that we deal with in these fields gets larger 
 
 
-# How to Use [Name]
-
-[Name] requires 
-
-
-
-```sh
-$ cd 
-$ npm install -d
-$ node app
-```
+# How to use this app?
+ - Clone this repository on Jupyter Hub.
+ - Create a Conda environment using `environment.yml`
+ - Open main.ipynb and render with Voila
 
 
 
