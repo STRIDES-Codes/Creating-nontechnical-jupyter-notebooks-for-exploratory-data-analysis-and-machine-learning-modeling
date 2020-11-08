@@ -443,15 +443,16 @@ def get_labels_dataframe(sample_sheet_file, metadata_file, log_fcn=print):
     return(df)
 
 
+# Used to remove outliers from analysis
+higher_is_better_by_column = {
+    'average base quality': True, 
+    'proportion_base_mismatch': False, 
+    'proportion_reads_mapped': True
+}
+
 # Plot histograms of the numerical columns of the samples/labels before and after cutoffs could theoretically be applied, and print out a summary of what we should probably do
 def remove_bad_samples(df_samples, nstd_by_column, log_fcn=print):
 
-    higher_is_better_by_column = {
-        'average base quality': True, 
-        'proportion_base_mismatch': False, 
-        'proportion_reads_mapped': True
-    }
-        
     # Import relevant library
     import numpy as np
 
