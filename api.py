@@ -2,6 +2,8 @@ import os
 import sys
 from collections import defaultdict
 
+from numpy.lib.function_base import _DIMENSION_NAME
+
 import target_class_lib as tc
 
 project_directory = '/srv/codathon'
@@ -15,6 +17,8 @@ sample_sheet_file = os.path.join(project_directory, 'data', 'gdc_sample_sheet.20
 metadata_file = os.path.join(project_directory, 'data', 'metadata.cart.2020-07-02.json')
 
 LABEL_COLUMN_NAME = 'label 1'
+
+AUTO_ENCODER_MODEL_PATH = 'src/models/autoencoder_model.h5'
 
 DEFAULT_LOG_FUNCTION = lambda *args: None
 
@@ -85,57 +89,95 @@ def calculate_tpm(counts, log_fcn=DEFAULT_LOG_FUNCTION):
     return clean_up_index_labels(df_tpm)
 
 
-def perform_pca(counts_dataframe, samples):
+def perform_pca(counts_dataframe, samples, n_components=10):
     labels_series = samples[LABEL_COLUMN_NAME]
-    # Creates and plots PCA analyses using 
-    # the variance-stabilizing-transformed data from DESeq2
-    assert counts_dataframe.index.equals(labels_series.index)
+    # Creates and plots PCA analyses
     import sklearn.decomposition as sk_decomp
-    pca = sk_decomp.PCA(n_components=10)
+    pca = sk_decomp.PCA(n_components=n_components)
     pca_res = pca.fit_transform(counts_dataframe.iloc[:,:500])
     ax = tc.plot_unsupervised_analysis(pca_res, labels_series)
-    ax.set_title('PCA - variance-stabilizing transformation')
+    ax.set_title('PCA')
 
 
-def perform_tsne(counts_dataframe, samples):
+def perform_tsne(counts_dataframe, samples, n_components=2):
     labels_series = samples[LABEL_COLUMN_NAME]
-    # Creates and plots TSNE analyses using 
-    # the variance-stabilizing-transformed data from DESeq2
-    assert counts_dataframe.index.equals(labels_series.index)
+    # Creates and plots tSNE analyses
     import sklearn.manifold as sk_manif
-    tsne = sk_manif.TSNE(n_components=2)
+    tsne = sk_manif.TSNE(n_components=n_components)
     tsne_res = tsne.fit_transform(counts_dataframe.iloc[:,:500])  # TODO allow filtering?
     ax = tc.plot_unsupervised_analysis(tsne_res, labels_series)
-    ax.set_title('tSNE - variance-stabilizing transformation')
+    ax.set_title('tSNE')
 
 
+def generate_autoencoder_model(counts_dataframe, samples, encoding_dim=600, decoding_dim=2000, epochs=5, batch_size=100):
+    from keras.layers import Input, Dense
+    from keras.models import Model
+    from sklearn.model_selection import train_test_split
+    from numpy.random import seed
+    from sklearn import preprocessing
+    import pandas as pd
+    import sklearn.decomposition as sk_decomp
+    import sklearn.manifold as sk_manif
 
-if __name__ == '__main__':
-    df_samples, df_counts, df_fpkm, df_fpkm_uq = get_data()
+    X1 = counts_dataframe.sort_index()
+    y1 = samples[LABEL_COLUMN_NAME].sort_index()
+    y1_num=y1.copy()
+
+    #encode the cancer type and store the coding in y1_dic
+    y1_v=y1_num.value_counts().index.tolist()
+    y1_dic = {k: v for v, k in enumerate(y1_v)}
+
+    #covert cancer types based on the coding 
+    for k, v in y1_dic.items():
+        y1_num.replace(k, v, inplace = True)
+
+    #normalize each sample first and standardize each feature independently (zero mean and unit variance)
+    #this is further used for model training
+    X1_std = preprocessing.scale(X1)
+    X1_std_norm = preprocessing.normalize(X1_std)
+    X1_std_norm = pd.DataFrame(data=X1_std_norm, index=X1.index, columns=X1.columns)
+
+    #standardize each feature independently (zero mean and unit variance) first and normalize each sample
+    X1_norm = preprocessing.normalize(X1)
+    X1_norm_std = preprocessing.scale(X1_norm)
+    X1_norm_std = pd.DataFrame(data=X1_norm_std, index=X1.index, columns=X1.columns)
+
+    #set up autoencoder
+    #split data into train and test sets
+    X_train, X_test, Y_train, Y_test = train_test_split(X1_std_norm, y1_num, train_size = 0.7, random_state = seed(42))
+    ncol = X1.shape[1]
+    input_dim = Input(shape = (ncol, ))
+    #define the dimension of encoder
+    #define the encoder layer
+    encoded1 = Dense(decoding_dim, activation = 'relu')(input_dim)
+    encoded2 = Dense(encoding_dim, activation = 'relu')(encoded1)
+    #define the decoder layer
+    decoded1 = Dense(decoding_dim, activation = 'sigmoid')(encoded2)
+    decoded2 = Dense(ncol, activation = 'sigmoid')(decoded1)
+    #combine encoder and decoder into an autoencoder model
+    autoencoder = Model(input_dim, decoded2)
+    #configure and train the autoencoder
+    autoencoder.compile(optimizer = 'adam', loss = 'mean_squared_error')
+    autoencoder.summary()
+    autoencoder.fit(X_train, X_train, epochs=epochs, batch_size=batch_size, shuffle=True, validation_data=(X_test, X_test))
+
+    # saving whole model
+    autoencoder.save(AUTO_ENCODER_MODEL_PATH)
+    return autoencoder
 
     
-    # TODO allow selection of project id, tissues, types of cancer, categories
+def run_autoencoder(counts_dataframe, samples, dim_reduction_method='PCA', n_components=10):
+    # loading whole model
+    from keras.models import load_model
+    if not os.path.exists(AUTO_ENCODER_MODEL_PATH):
+        encoder = generate_autoencoder_model(counts_dataframe, samples)
+    else:
+        encoder = load_model(AUTO_ENCODER_MODEL_PATH)
     
-    # TODO display summary statistics
+    import pandas as pd
+    encoded_out = encoder.predict(counts_dataframe)
+    if dim_reduction_method == 'PCA':
+        perform_pca(pd.DataFrame(encoded_out), samples, n_components=n_components)
+    elif dim_reduction_method == 'tSNE':
+        perform_tsne(pd.DataFrame(encoded_out), samples, n_components=n_components)
 
-    # Plot histograms of the numerical columns of the samples/labels before 
-    # and after cutoffs are applied, and print out a summary of what was removed
-    perform_eda(df_samples)
-    df_samples, df_counts, df_fpkm, df_fpkm_uq = apply_cutoffs(df_samples, df_counts, df_fpkm, df_fpkm_uq)
-    perform_eda(df_samples)
-
-
-    # TODO how will this be displayed/used? 
-    # Print some random data for us to spot-check in the files 
-    # themselves to manually ensure we have a handle on the data arrays
-    tc.spot_check_data(df_samples, df_counts, df_fpkm, df_fpkm_uq)
-
-
-    df_tpm = calculate_tpm(df_counts)
-
-    # TODO Run the variance-stabilizing transformation using DESeq2
-    # using this most-detailed set of labels
-
-
-    perform_pca(df_tpm, df_samples)
-    perform_tsne(df_tpm, df_samples)
