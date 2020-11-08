@@ -74,8 +74,6 @@ Here are all of the awesome people who contributed to this project:
 * Siqi Sun
 * Ruben Cuevas
 
-And of course [Name] itself is open source with a [public repository][dill]
- on GitHub.
 
 License
 ----
