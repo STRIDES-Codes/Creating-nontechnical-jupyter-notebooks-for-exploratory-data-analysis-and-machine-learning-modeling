@@ -5,6 +5,10 @@
 [![Build Status](https://travis-ci.org/joemccann/dillinger.svg?branch=master)](https://travis-ci.org/joemccann/dillinger)
 
 
+# How to run this app?
+ - Clone this repository on Jupyter Hub.
+ - Open main.ipynb and render with Voila
+
 
 # What is exploratory data analysis?
 
