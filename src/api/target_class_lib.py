@@ -98,7 +98,7 @@ def get_tci_library():
     gmb_dir = '/data/BIDS-HPC/private/projects/gmb/checkout'
     if gmb_dir not in sys.path:
         sys.path.append(gmb_dir)
-    import time_cell_interaction_lib as tci  # we need this to get the pickle functions e.g.
+    from src.api import time_cell_interaction_lib as tci  # we need this to get the pickle functions e.g.
     return(tci)
 
 

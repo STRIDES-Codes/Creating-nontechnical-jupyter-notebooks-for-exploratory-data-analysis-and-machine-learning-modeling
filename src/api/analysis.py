@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from numpy.lib.function_base import _DIMENSION_NAME
 
-import target_class_lib as tc
+from src.api import target_class_lib as tc
 
 project_directory = '/srv/codathon'
 
