@@ -1,10 +1,5 @@
 # [Interactive Data Science] - Creating Nontechnical Jupyter Notebooks For Exploratory Data Analysis and Machine Learning Modeling of Cancer Data
 
-[![N|Solid](https://cldup.com/dTxpPi9lDf.thumb.png)](https://nodesource.com/products/nsolid)
-
-[![Build Status](https://travis-ci.org/joemccann/dillinger.svg?branch=master)](https://travis-ci.org/joemccann/dillinger)
-
-
 
 # What is exploratory data analysis?
 
