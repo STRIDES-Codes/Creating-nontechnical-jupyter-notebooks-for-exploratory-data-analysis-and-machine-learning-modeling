@@ -23,3 +23,4 @@ class Tab:
             child = widgets.Output()
         self.container.children += (child,)
         return child
+
