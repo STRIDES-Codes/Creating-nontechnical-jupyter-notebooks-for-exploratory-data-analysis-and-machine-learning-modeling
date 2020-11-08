@@ -37,9 +37,8 @@ We believe that this problem is important because the faciliation of collaborati
 
 
 ### Dependencies
-
-[Name] uses many plugins. However, since the app server has all the dependencies installed, the user does not have to install them manually. 
-
+1. Packages defined in `environment.yml`
+2. Voila to render Jupyter Notebooks as interactive apps.
 
 
 
