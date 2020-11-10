@@ -6,7 +6,7 @@ from numpy.lib.function_base import _DIMENSION_NAME
 
 from src.api import target_class_lib as tc
 
-project_directory = '/srv/codathon'
+project_directory = '/srv/target'
 
 if os.path.join(project_directory, 'checkout') not in sys.path:
     sys.path.append(os.path.join(project_directory, 'checkout'))
@@ -89,23 +89,25 @@ def calculate_tpm(counts, log_fcn=DEFAULT_LOG_FUNCTION):
     return clean_up_index_labels(df_tpm)
 
 
-def perform_pca(counts_dataframe, samples, n_components=10):
+def perform_pca(counts_dataframe, samples, n_components=10,plt_ctx=None):
     labels_series = samples[LABEL_COLUMN_NAME]
     # Creates and plots PCA analyses
     import sklearn.decomposition as sk_decomp
     pca = sk_decomp.PCA(n_components=n_components)
     pca_res = pca.fit_transform(counts_dataframe.iloc[:,:500])
-    ax = tc.plot_unsupervised_analysis(pca_res, labels_series)
+    plt_ctx.clear_output()
+    ax = tc.plot_unsupervised_analysis(pca_res, labels_series,plt_ctx=plt_ctx)
     ax.set_title('PCA')
 
 
-def perform_tsne(counts_dataframe, samples, n_components=2):
+def perform_tsne(counts_dataframe, samples, n_components=2,plt_ctx=None):
     labels_series = samples[LABEL_COLUMN_NAME]
     # Creates and plots tSNE analyses
     import sklearn.manifold as sk_manif
-    tsne = sk_manif.TSNE(n_components=n_components)
-    tsne_res = tsne.fit_transform(counts_dataframe.iloc[:,:500])  # TODO allow filtering?
-    ax = tc.plot_unsupervised_analysis(tsne_res, labels_series)
+    tsne_res = sk_manif.TSNE(n_components=2)
+    tsne_res = tsne_res.fit_transform(counts_dataframe.iloc[:,:500])  # TODO allow filtering?
+    plt_ctx.clear_output()
+    ax = tc.plot_unsupervised_analysis(tsne_res, labels_series,plt_ctx=plt_ctx)
     ax.set_title('tSNE')
 
 
@@ -166,7 +168,7 @@ def generate_autoencoder_model(counts_dataframe, samples, encoding_dim=600, deco
     return autoencoder
 
     
-def run_autoencoder(counts_dataframe, samples, dim_reduction_method='PCA', n_components=10):
+def run_autoencoder(counts_dataframe, samples, dim_reduction_method='PCA', n_components=10,plt_ctx=None):
     # loading whole model
     from keras.models import load_model
     if not os.path.exists(AUTO_ENCODER_MODEL_PATH):
@@ -177,7 +179,7 @@ def run_autoencoder(counts_dataframe, samples, dim_reduction_method='PCA', n_com
     import pandas as pd
     encoded_out = encoder.predict(counts_dataframe)
     if dim_reduction_method == 'PCA':
-        perform_pca(pd.DataFrame(encoded_out), samples, n_components=n_components)
+        perform_pca(pd.DataFrame(encoded_out), samples, n_components=n_components,plt_ctx=plt_ctx)
     elif dim_reduction_method == 'tSNE':
-        perform_tsne(pd.DataFrame(encoded_out), samples, n_components=n_components)
+        perform_tsne(pd.DataFrame(encoded_out), samples, n_components=n_components,plt_ctx=plt_ctx)
 

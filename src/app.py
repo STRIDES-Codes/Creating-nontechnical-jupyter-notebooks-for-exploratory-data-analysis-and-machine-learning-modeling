@@ -24,9 +24,8 @@ class App:
         self.dim_reduction_tab = self.add_tab('PCA/tSNE')
 
         pca_btn = widgets.Button(description='Perform PCA')
-        self.dim_reduction_tab.add_child(pca_btn)
-        self.pca_ctx = self.dim_reduction_tab.add_child()
-
+        
+        
         def pca(_):
             self.pca_ctx.clear_output()
             with self.pca_ctx:
@@ -41,36 +40,44 @@ class App:
             with self.tsne_ctx:
                 api.perform_tsne(self.df_tpm, self.df_samples)
 
+        
+        
+        tsne_btn.on_click(tsne)
+        self.dim_reduction_tab.add_child(pca_btn)
+        self.pca_ctx = self.dim_reduction_tab.add_child()
         self.dim_reduction_tab.add_child(tsne_btn)
         self.tsne_ctx = self.dim_reduction_tab.add_child()
-        tsne_btn.on_click(tsne)
-
     
     def add_autoencoder_tab(self):
         self.autoencoder_tab = self.add_tab('Autoencoder')
 
-        pca_btn = widgets.Button(description='Run Autoencoder with PCA', width=600)
-        self.autoencoder_tab.add_child(pca_btn)
-        self.autoencoder_pca_ctx = self.dim_reduction_tab.add_child()
-
+        pca_btn = widgets.Button(description='Autoencoder PCA', width=600)
         def pca(_):
             self.autoencoder_pca_ctx.clear_output()
-            with self.pca_ctx:
-                api.run_autoencoder(self.df_tpm, self.df_samples, dim_reduction_method='PCA', n_components=10)
+            with self.autoencoder_pca_ctx:
+                print("running PCA on autoencoder")
+                api.run_autoencoder(self.df_tpm, self.df_samples, dim_reduction_method='PCA', n_components=10,plt_ctx=self.autoencoder_pca_ctx)
 
         pca_btn.on_click(pca)
         
-        tsne_btn = widgets.Button(description='Run Autoencoder with tSNE')
+        tsne_btn = widgets.Button(description='Autoencoder tSNE')
 
         def tsne(_):
             self.autoencoder_tsne_ctx.clear_output()
             with self.autoencoder_tsne_ctx:
-                api.run_autoencoder(self.df_tpm, self.df_samples, dim_reduction_method='PCA', n_components=10)
+                print("running tSNE on autoencoder")
+                api.run_autoencoder(self.df_tpm, self.df_samples, dim_reduction_method='tSNE', n_components=10,plt_ctx=self.autoencoder_tsne_ctx)
 
+        
+        
+        tsne_btn.on_click(tsne)
+        self.autoencoder_tab.add_child(pca_btn)
+        self.autoencoder_pca_ctx = self.autoencoder_tab.add_child()
         self.autoencoder_tab.add_child(tsne_btn)
         self.autoencoder_tsne_ctx = self.autoencoder_tab.add_child()
-        tsne_btn.on_click(tsne)
 
+
+        
     def add_data_tab(self):
         self.data_tab = self.add_tab('Data')
 
