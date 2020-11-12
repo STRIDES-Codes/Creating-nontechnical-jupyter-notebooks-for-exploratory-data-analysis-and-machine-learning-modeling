@@ -2,7 +2,7 @@
 import ipywidgets as widgets
 from src.api import analysis as api
 from src.api.target_class_lib import higher_is_better_by_column
-
+import gc
 PROJECT_ID_COLUMN = 'project id'
 SAMPLE_TYPE_COLUMN = 'sample type'
 
@@ -29,7 +29,7 @@ class App:
         def pca(_):
             self.pca_ctx.clear_output()
             with self.pca_ctx:
-                api.perform_pca(self.df_tpm, self.df_samples)
+                api.perform_pca(self.df_tpm, self.df_samples, plt_ctx=self.pca_ctx)
 
         pca_btn.on_click(pca)
         
@@ -38,7 +38,7 @@ class App:
         def tsne(_):
             self.tsne_ctx.clear_output()
             with self.tsne_ctx:
-                api.perform_tsne(self.df_tpm, self.df_samples)
+                api.perform_tsne(self.df_tpm, self.df_samples, plt_ctx=self.tsne_ctx)
 
         
         
@@ -55,7 +55,7 @@ class App:
         def pca(_):
             self.autoencoder_pca_ctx.clear_output()
             with self.autoencoder_pca_ctx:
-                print("running PCA on autoencoder")
+                print("Encoding then PCA starting now...")
                 api.run_autoencoder(self.df_tpm, self.df_samples, dim_reduction_method='PCA', n_components=10,plt_ctx=self.autoencoder_pca_ctx)
 
         pca_btn.on_click(pca)
@@ -65,7 +65,7 @@ class App:
         def tsne(_):
             self.autoencoder_tsne_ctx.clear_output()
             with self.autoencoder_tsne_ctx:
-                print("running tSNE on autoencoder")
+                print("Encoding then tSNE starting now...")
                 api.run_autoencoder(self.df_tpm, self.df_samples, dim_reduction_method='tSNE', n_components=10,plt_ctx=self.autoencoder_tsne_ctx)
 
         
@@ -159,6 +159,7 @@ class App:
             api.perform_eda(self.df_samples, log_fcn=self.log_fcn)
         
         self.df_tpm = api.calculate_tpm(self.df_counts)
+        gc.collect()
 
     def add_tab(self, tab_title):
         tab = Tab()
